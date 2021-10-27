@@ -6,8 +6,13 @@ import (
 	"strings"
 )
 
-func Debug(r io.Reader) {
-
+func Debug(r io.Reader) error {
+	n, err := Parse(r)
+	if err != nil {
+		return err
+	}
+	debug(n)
+	return nil
 }
 
 func debug(n Node) {

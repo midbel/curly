@@ -66,5 +66,7 @@ func scan(template string) {
 
 func exec(template string, data interface{}) {
 	r := strings.NewReader(strings.TrimSpace(template))
-	curly.Debug(r)
+	if err := curly.Debug(r); err != nil {
+		fmt.Println(err)
+	}
 }
