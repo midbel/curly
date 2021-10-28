@@ -39,7 +39,16 @@ func Scan(r io.Reader) (*Scanner, error) {
 	return &s, nil
 }
 
-func (s *Scanner) Scan() (t Token) {
+func (s *Scanner) Position() Position {
+	return Position{
+		Line:   s.line,
+		Column: s.column,
+	}
+}
+
+func (s *Scanner) Scan() Token {
+	var t Token
+	t.Position = s.Position()
 	if s.isEOF() {
 		t.Type = EOF
 		return t

@@ -40,7 +40,7 @@ const (
 	lbrace     = '{'
 	rbrace     = '}'
 	bang       = '!'
-	rangle      = '>'
+	rangle     = '>'
 	langle     = '<'
 	arobase    = '@'
 	percent    = '%'
@@ -57,7 +57,13 @@ const (
 	dash       = '-'
 )
 
+type Position struct {
+	Line   int
+	Column int
+}
+
 type Token struct {
+	Position
 	Literal string
 	Unescap bool
 	Type    rune

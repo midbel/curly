@@ -13,13 +13,16 @@ hello {{ text | split "_" | reverse | join "/" }}
   // be called and replaced the content of the content of the block
 {{/block}}
 
-{{@ call state}} // call a template define elsewhere (inline or in another file)
+{{@ call1 state}} // call a template define elsewhere (inline or in another file)
+{{@ call2 }} // call a template define elsewhere (inline or in another file)
 
 {{ variable }}
 
-{{# block }}{{/ block}}
-{{^ inverted }}{{/ inverted}}
+{{# block }}
+hello {{ world }} - hello {{world}}
+{{/ block}}
+{{^ inverted }}rendered only when its context has a falsy value{{/ inverted}}
 
-{{> partial }}
+{{! > partial }}
 
 {{! comment}}

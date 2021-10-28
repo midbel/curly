@@ -12,7 +12,10 @@ func Debug(r io.Reader, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	debug(bufio.NewWriter(w), n)
+	ws := bufio.NewWriter(w)
+	defer ws.Flush()
+
+	debug(ws, n)
 	return nil
 }
 
@@ -32,9 +35,27 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		}
 		fmt.Fprint(w, prefix)
 		fmt.Fprintln(w, "]")
+	case *ExecNode:
+		fmt.Fprint(w, "exec(name: ")
+		fmt.Fprint(w, n.name)
+		if n.key.name != "" {
+			fmt.Fprint(w, ", key: ")
+			fmt.Fprint(w, n.key.name)
+			printFilters(w, n.key.filters)
+		}
+		fmt.Fprintln(w, ")")
+	case *DefineNode:
+		fmt.Fprint(w, "define(name: ")
+		fmt.Fprint(w, n.name)
+		fmt.Fprintln(w, ")")
+	case *SectionNode:
+		fmt.Fprint(w, "section(name: ")
+		fmt.Fprint(w, n.name)
+		fmt.Fprintln(w, ")")
 	case *BlockNode:
 		fmt.Fprint(w, "block(key: ")
 		fmt.Fprint(w, n.key.name)
+		printFilters(w, n.key.filters)
 		fmt.Fprint(w, ") [")
 		fmt.Fprintln(w)
 		for i := range n.nodes {
@@ -47,6 +68,7 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		fmt.Fprint(w, n.key.name)
 		fmt.Fprint(w, ", unescape: ")
 		fmt.Fprint(w, n.unescap)
+		printFilters(w, n.key.filters)
 		fmt.Fprint(w, ")")
 		fmt.Fprintln(w)
 	case *CommentNode:
@@ -65,5 +87,18 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		}
 		fmt.Fprint(w, ")")
 		fmt.Fprintln(w)
+	}
+}
+
+func printFilters(w io.Writer, filters []Filter) {
+	if len(filters) == 0 {
+		return
+	}
+	fmt.Fprint(w, ", filter: ")
+	for i, f := range filters {
+		if i > 0 {
+			fmt.Fprint(w, " | ")
+		}
+		fmt.Fprint(w, f.name)
 	}
 }

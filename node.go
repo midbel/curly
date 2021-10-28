@@ -28,7 +28,7 @@ func (c *CommentNode) execute(w io.StringWriter, _ *state) error {
 }
 
 type DefineNode struct {
-	key   string
+	name  string
 	nodes []Node
 }
 
@@ -44,12 +44,13 @@ func (d *DefineNode) execute(w io.StringWriter, _ *state) error {
 
 type ExecNode struct {
 	name string
+	key  Key
 }
 
 func (e *ExecNode) Execute(w io.Writer, _ interface{}) error {
 	wr := bufio.NewWriter(w)
 	defer wr.Flush()
-	return d.execute(wr, nil)
+	return e.execute(wr, nil)
 }
 
 func (e *ExecNode) execute(w io.StringWriter, _ *state) error {
@@ -57,14 +58,14 @@ func (e *ExecNode) execute(w io.StringWriter, _ *state) error {
 }
 
 type SectionNode struct {
-	key string
+	name  string
 	nodes []Node
 }
 
 func (s *SectionNode) Execute(w io.Writer, _ interface{}) error {
 	wr := bufio.NewWriter(w)
 	defer wr.Flush()
-	return d.execute(wr, nil)
+	return s.execute(wr, nil)
 }
 
 func (s *SectionNode) execute(w io.StringWriter, _ *state) error {

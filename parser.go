@@ -44,8 +44,8 @@ func NewParser(r io.Reader) (*Parser, error) {
 	p.parsers = map[rune]func() (Node, error){
 		Block:       p.parseBlock,
 		Inverted:    p.parseBlock,
-		Section:     p.parseBlock,
-		Define:      p.parseBlock,
+		Section:     p.parseSection,
+		Define:      p.parseDefine,
 		Exec:        p.parseExec,
 		EscapeVar:   p.parseVariable,
 		UnescapeVar: p.parseVariable,
@@ -89,8 +89,62 @@ func (p *Parser) Parse() (*Template, error) {
 	return t, nil
 }
 
+func (p *Parser) parseSection() (Node, error) {
+	p.next()
+	if p.curr.Type != Ident {
+		return nil, p.unexpectedToken()
+	}
+	s := SectionNode{
+		name: p.curr.Literal,
+	}
+	if err := p.ensureClose(); err != nil {
+		return nil, err
+	}
+	ns, err := p.parseBody(s.name)
+	if err != nil {
+		return nil, err
+	}
+	s.nodes = ns
+	return &s, nil
+}
+
+func (p *Parser) parseDefine() (Node, error) {
+	p.next()
+	if p.curr.Type != Ident {
+		return nil, p.unexpectedToken()
+	}
+	d := DefineNode{
+		name: p.curr.Literal,
+	}
+	if err := p.ensureClose(); err != nil {
+		return nil, err
+	}
+	ns, err := p.parseBody(d.name)
+	if err != nil {
+		return nil, err
+	}
+	d.nodes = ns
+	return &d, nil
+}
+
 func (p *Parser) parseExec() (Node, error) {
-	return nil, nil
+	p.next()
+	if p.curr.Type != Ident {
+		return nil, p.unexpectedToken()
+	}
+	e := ExecNode{
+		name: p.curr.Literal,
+	}
+	if p.peek.Type != Ident {
+		return &e, p.ensureClose()
+	}
+	p.next()
+	key, err := p.parseKey()
+	if err != nil {
+		return nil, err
+	}
+	e.key = key
+	return &e, nil
 }
 
 func (p *Parser) parsePartial() (Node, error) {
@@ -139,16 +193,23 @@ func (p *Parser) parseBlock() (Node, error) {
 		return nil, err
 	}
 	b.key = key
-	if err := p.ensureClose(); err != nil {
+	ns, err := p.parseBody(b.key.name)
+	if err != nil {
 		return nil, err
 	}
-	for !p.done() {
+	b.nodes = ns
+	return &b, nil
+}
+
+func (p *Parser) parseBody(name string) ([]Node, error) {
+	var ns []Node
+	for p.curr.Type != End && !p.done() {
 		if p.curr.Type == Literal {
 			node, err := p.parseLiteral()
 			if err != nil {
 				return nil, err
 			}
-			b.nodes = append(b.nodes, node)
+			ns = append(ns, node)
 			continue
 		}
 		if p.curr.Type != Open {
@@ -163,17 +224,17 @@ func (p *Parser) parseBlock() (Node, error) {
 			return nil, err
 		}
 		if node != nil {
-			b.nodes = append(b.nodes, node)
+			ns = append(ns, node)
 		}
 	}
 	if p.curr.Type != End {
 		return nil, p.unexpectedToken()
 	}
 	p.next()
-	if p.curr.Type != Ident && p.curr.Literal != b.key.name {
+	if p.curr.Type != Ident && p.curr.Literal != name {
 		return nil, p.unexpectedToken()
 	}
-	return &b, p.ensureClose()
+	return ns, p.ensureClose()
 }
 
 func (p *Parser) parseNode() (Node, error) {
@@ -259,7 +320,7 @@ func (p *Parser) ensureClose() error {
 }
 
 func (p *Parser) unexpectedToken() error {
-	return fmt.Errorf("%w: %s", ErrUnexpected, p.curr)
+	return fmt.Errorf("<%d:%d> %w: %s", p.curr.Line, p.curr.Column, ErrUnexpected, p.curr)
 }
 
 func (p *Parser) done() bool {
