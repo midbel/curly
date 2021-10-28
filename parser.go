@@ -25,6 +25,14 @@ func Parse(r io.Reader) (*Template, error) {
 	return p.Parse()
 }
 
+func parseFile(f string) (*Template, error) {
+	r, err := os.Open(f)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(r)
+}
+
 func NewParser(r io.Reader) (*Parser, error) {
 	s, err := Scan(r)
 	if err != nil {
@@ -36,6 +44,9 @@ func NewParser(r io.Reader) (*Parser, error) {
 	p.parsers = map[rune]func() (Node, error){
 		Block:       p.parseBlock,
 		Inverted:    p.parseBlock,
+		Section:     p.parseBlock,
+		Define:      p.parseBlock,
+		Exec:        p.parseExec,
 		EscapeVar:   p.parseVariable,
 		UnescapeVar: p.parseVariable,
 		Comment:     p.parseComment,
@@ -50,7 +61,7 @@ func NewParser(r io.Reader) (*Parser, error) {
 }
 
 func (p *Parser) Parse() (*Template, error) {
-	var t Template
+	t := New("")
 	for !p.done() {
 		var (
 			node Node
@@ -75,7 +86,11 @@ func (p *Parser) Parse() (*Template, error) {
 			t.nodes = append(t.nodes, node)
 		}
 	}
-	return &t, nil
+	return t, nil
+}
+
+func (p *Parser) parseExec() (Node, error) {
+	return nil, nil
 }
 
 func (p *Parser) parsePartial() (Node, error) {

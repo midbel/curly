@@ -236,8 +236,14 @@ func (s *Scanner) scanType(t *Token) {
 	case equal:
 		t.Type = Delim
 		s.scan = s.scanOpenDelimiter
-	case angle:
+	case rangle:
 		t.Type = Partial
+	case langle:
+		t.Type = Define
+	case arobase:
+		t.Type = Exec
+	case percent:
+		t.Type = Section
 	case slash:
 		t.Type = End
 	case amper:
@@ -332,7 +338,7 @@ func (s *Scanner) peek() rune {
 
 func isTag(r rune) bool {
 	switch r {
-	case pound, caret, angle, slash, amper, pipe, equal:
+	case pound, caret, rangle, langle, percent, arobase, slash, amper, pipe, equal:
 	default:
 		return false
 	}

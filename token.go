@@ -24,6 +24,9 @@ const (
 	Or
 	Not
 	Partial
+	Section
+	Define
+	Exec
 	Comment
 	End
 	Invalid
@@ -37,7 +40,10 @@ const (
 	lbrace     = '{'
 	rbrace     = '}'
 	bang       = '!'
-	angle      = '>'
+	rangle      = '>'
+	langle     = '<'
+	arobase    = '@'
+	percent    = '%'
 	equal      = '='
 	space      = ' '
 	tab        = '\t'
@@ -87,6 +93,12 @@ func (t Token) String() string {
 		return "<close>"
 	case Block:
 		return "<block>"
+	case Define:
+		return "<define>"
+	case Exec:
+		return "<exec>"
+	case Section:
+		return "<section>"
 	case Inverted:
 		return "<inverted>"
 	case Comment:

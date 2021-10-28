@@ -1,0 +1,25 @@
+hello {{world | lower}} - {{world | upper | len}}
+
+hello {{ text | split "_" | reverse | join "/" }}
+
+{{< define}}
+  // define a template that can be reused
+  // define template are never rendered except if they are called
+{{/ define}}
+
+{{% block}}
+  // define a block that can be overwritten by a call
+  // if a template with the same name of the block is defined then it will
+  // be called and replaced the content of the content of the block
+{{/block}}
+
+{{@ call state}} // call a template define elsewhere (inline or in another file)
+
+{{ variable }}
+
+{{# block }}{{/ block}}
+{{^ inverted }}{{/ inverted}}
+
+{{> partial }}
+
+{{! comment}}

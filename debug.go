@@ -1,68 +1,69 @@
 package curly
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"strings"
 )
 
-func Debug(r io.Reader) error {
+func Debug(r io.Reader, w io.Writer) error {
 	n, err := Parse(r)
 	if err != nil {
 		return err
 	}
-	debug(n)
+	debug(bufio.NewWriter(w), n)
 	return nil
 }
 
-func debug(n Node) {
-	debugWithLevel(n, 0)
+func debug(w io.Writer, n Node) {
+	debugWithLevel(w, n, 0)
 }
 
-func debugWithLevel(n Node, level int) {
+func debugWithLevel(w io.Writer, n Node, level int) {
 	prefix := strings.Repeat(" ", level)
-	fmt.Print(prefix)
+	fmt.Fprint(w, prefix)
 	switch n := n.(type) {
 	case *Template:
-		fmt.Print("template [")
-		fmt.Println()
+		fmt.Fprint(w, "template [")
+		fmt.Fprintln(w)
 		for i := range n.nodes {
-			debugWithLevel(n.nodes[i], level+2)
+			debugWithLevel(w, n.nodes[i], level+2)
 		}
-		fmt.Print(prefix)
-		fmt.Println("]")
+		fmt.Fprint(w, prefix)
+		fmt.Fprintln(w, "]")
 	case *BlockNode:
-		fmt.Print("block(key: ")
-		fmt.Print(n.key.name)
-		fmt.Print(") [")
-		fmt.Println()
+		fmt.Fprint(w, "block(key: ")
+		fmt.Fprint(w, n.key.name)
+		fmt.Fprint(w, ") [")
+		fmt.Fprintln(w)
 		for i := range n.nodes {
-			debugWithLevel(n.nodes[i], level+2)
+			debugWithLevel(w, n.nodes[i], level+2)
 		}
-		fmt.Print(prefix)
-		fmt.Println("]")
+		fmt.Fprint(w, prefix)
+		fmt.Fprintln(w, "]")
 	case *VariableNode:
-		fmt.Print("variable(key: ")
-		fmt.Print(n.key.name)
-		fmt.Print(", unescape: ")
-		fmt.Print(n.unescap)
-		fmt.Print(")")
-		fmt.Println()
+		fmt.Fprint(w, "variable(key: ")
+		fmt.Fprint(w, n.key.name)
+		fmt.Fprint(w, ", unescape: ")
+		fmt.Fprint(w, n.unescap)
+		fmt.Fprint(w, ")")
+		fmt.Fprintln(w)
 	case *CommentNode:
-		fmt.Print("comment(")
-		fmt.Print(n.str)
-		fmt.Print(")")
-		fmt.Println()
+		fmt.Fprint(w, "comment(")
+		fmt.Fprint(w, n.str)
+		fmt.Fprint(w, ")")
+		fmt.Fprintln(w)
 	case *LiteralNode:
-		fmt.Print("literal(str: ")
+		fmt.Fprint(w, "literal(str: ")
 		for j, i := range strings.Split(n.str, "\n") {
 			if j > 0 {
-				fmt.Println()
-				fmt.Print(prefix)
+				fmt.Fprintln(w)
+				fmt.Fprint(w, prefix)
 			}
-			fmt.Print(i)
+			fmt.Fprint(w, i)
 		}
-		fmt.Print(")")
-		fmt.Println()
+		fmt.Fprint(w, ")")
+		fmt.Fprintln(w)
 	}
 }

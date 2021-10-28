@@ -6,19 +6,79 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"io/fs"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
+type FuncMap map[string]interface{}
+
 type Template struct {
+	name  string
+	funcs FuncMap
+	set   map[string]*Template
 	nodes []Node
+}
+
+func New(name string) *Template {
+	return &Template{
+		name:  name,
+		funcs: make(FuncMap),
+	}
+}
+
+func (t *Template) Funcs(fm FuncMap) *Template {
+	for k, f := range fm {
+		t.funcs[k] = f
+	}
+	return t
+}
+
+func (t *Template) Parse(r io.Reader) (*Template, error) {
+	tpl, err := Parse(r)
+	if err != nil {
+		return nil, err
+	}
+	_ = tpl
+	return nil, nil
+}
+
+func (t *Template) ParseString(str string) (*Template, error) {
+	return t.Parse(strings.NewReader(str))
+}
+
+func (t *Template) ParseFiles(files ...string) (*Template, error) {
+	for i := range files {
+		tpl, err := parseFile(files[i])
+		if err != nil {
+			return nil, err
+		}
+		_ = tpl
+	}
+	return nil, nil
+}
+
+func (t *Template) ParseFS(tfs fs.FS) (*Template, error) {
+	return nil, nil
+}
+
+func (t *Template) ExecuteTemplate(name string, w io.Writer, data interface{}) error {
+	return nil
 }
 
 func (t *Template) Execute(w io.Writer, data interface{}) error {
 	wr := bufio.NewWriter(w)
 	defer wr.Flush()
 	return t.execute(wr, emptyState(data))
+}
+
+func (t *Template) Lookup(name string) *Template {
+	return nil
+}
+
+func (t *Template) DefinedTemplates() []string {
+	return nil
 }
 
 func (t *Template) execute(w io.StringWriter, data *state) error {

@@ -27,6 +27,50 @@ func (c *CommentNode) execute(w io.StringWriter, _ *state) error {
 	return nil
 }
 
+type DefineNode struct {
+	key   string
+	nodes []Node
+}
+
+func (d *DefineNode) Execute(w io.Writer, _ interface{}) error {
+	wr := bufio.NewWriter(w)
+	defer wr.Flush()
+	return d.execute(wr, nil)
+}
+
+func (d *DefineNode) execute(w io.StringWriter, _ *state) error {
+	return nil
+}
+
+type ExecNode struct {
+	name string
+}
+
+func (e *ExecNode) Execute(w io.Writer, _ interface{}) error {
+	wr := bufio.NewWriter(w)
+	defer wr.Flush()
+	return d.execute(wr, nil)
+}
+
+func (e *ExecNode) execute(w io.StringWriter, _ *state) error {
+	return nil
+}
+
+type SectionNode struct {
+	key string
+	nodes []Node
+}
+
+func (s *SectionNode) Execute(w io.Writer, _ interface{}) error {
+	wr := bufio.NewWriter(w)
+	defer wr.Flush()
+	return d.execute(wr, nil)
+}
+
+func (s *SectionNode) execute(w io.StringWriter, _ *state) error {
+	return nil
+}
+
 type LiteralNode struct {
 	str string
 }

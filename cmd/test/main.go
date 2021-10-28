@@ -1,72 +1,65 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"strings"
+	"io"
+	"os"
 
 	"github.com/midbel/curly"
+	"github.com/midbel/toml"
 )
 
-const template1 = `
-hello {{& World }} - {{#truthy}}{{&name}}{{/truthy}}
-{{^Falsy}}nothing will be rendered {{& falsy}}{{/Falsy}}
->>{{! comment will not be rendered }}<<
-`
-
-const template2 = `
-my repositories:
-{{# repo }}
-  {{Name}} (version: {{Version}})
-{{/ repo }}
-contacts: {{ Email }}
-`
-
-const template3 = `
-* {{default_tags}}
-{{=<% %>=}}
-* <% erb_style_tags %>
-<%={{ }}=%>
-* {{ default_tags_again }}
-`
-
-const template4 = `hello {{ array | cut 3 | join "," false }} - {{=<% %>=}} - <% var %>`
-
-const template5 = `
-hello {{world | lower}} - {{world | upper | len}}
-
-hello {{ text | split "_" | reverse | join "/" }}
-`
-
-type Name struct {
-	Name    string
-	Version int
-}
-
 func main() {
-	c := struct {
-		World string `tag:"world"`
-		Text  string `tag:"text"`
-	}{
-		World: "World",
-		Text:  "under_score_text_with_extra_words",
+	var (
+		scan = flag.Bool("s", false, "scan")
+		exec = flag.Bool("e", false, "exec")
+	)
+	flag.Parse()
+
+	r, err := os.Open(flag.Arg(0))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
 	}
-	exec(template5, c)
+	defer r.Close()
+
+	if *scan {
+		scanTemplate(r)
+	} else if *exec {
+		err = execTemplate(r, flag.Arg(1))
+	} else {
+		err = debugTemplate(r)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
-func scan(template string) {
-	s, _ := curly.Scan(strings.NewReader(template))
+func execTemplate(r io.Reader, file string) error {
+	data := make(map[string]interface{})
+	if err := toml.DecodeFile(file, &data); err != nil && file != "" {
+		return err
+	}
+	t, err := curly.Parse(r)
+	if err != nil {
+		return err
+	}
+	return t.Execute(os.Stdout, data)
+}
+
+func debugTemplate(r io.Reader) error {
+	return curly.Debug(r, os.Stdout)
+}
+
+func scanTemplate(r io.Reader) {
+	s, _ := curly.Scan(r)
 	for {
 		tok := s.Scan()
-		if tok.Type == curly.EOF {
+		if tok.Type == curly.EOF || tok.Type == curly.Invalid {
 			break
 		}
 		fmt.Println(tok)
-	}
-}
-
-func exec(template string, data interface{}) {
-	r := strings.NewReader(strings.TrimSpace(template))
-	if err := curly.Debug(r); err != nil {
-		fmt.Println(err)
 	}
 }
