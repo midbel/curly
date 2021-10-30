@@ -203,7 +203,7 @@ func (p *Parser) parseBlock() (Node, error) {
 
 func (p *Parser) parseBody(name string) ([]Node, error) {
 	var ns []Node
-	for p.curr.Type != End && !p.done() {
+	for !p.done() {
 		if p.curr.Type == Literal {
 			node, err := p.parseLiteral()
 			if err != nil {
