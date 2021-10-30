@@ -1,23 +1,26 @@
-package curly
+package parser
 
 import (
 	"errors"
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/midbel/curly/internal/scanner"
+	"github.com/midbel/curly/internal/token"
 )
 
 var ErrUnexpected = errors.New("unexpected token")
 
 type Parser struct {
-	scan *Scanner
-	curr Token
-	peek Token
+	scan *scanner.Scanner
+	curr token.Token
+	peek token.Token
 
 	parsers map[rune]func() (Node, error)
 }
 
-func Parse(r io.Reader) (*Template, error) {
+func Parse(r io.Reader) (Node, error) {
 	p, err := NewParser(r)
 	if err != nil {
 		return nil, err
@@ -25,7 +28,7 @@ func Parse(r io.Reader) (*Template, error) {
 	return p.Parse()
 }
 
-func parseFile(f string) (*Template, error) {
+func parseFile(f string) (Node, error) {
 	r, err := os.Open(f)
 	if err != nil {
 		return nil, err
@@ -34,7 +37,7 @@ func parseFile(f string) (*Template, error) {
 }
 
 func NewParser(r io.Reader) (*Parser, error) {
-	s, err := Scan(r)
+	s, err := scanner.Scan(r)
 	if err != nil {
 		return nil, err
 	}
@@ -42,16 +45,16 @@ func NewParser(r io.Reader) (*Parser, error) {
 	var p Parser
 	p.scan = s
 	p.parsers = map[rune]func() (Node, error){
-		Block:       p.parseBlock,
-		Inverted:    p.parseBlock,
-		Section:     p.parseSection,
-		Define:      p.parseDefine,
-		Exec:        p.parseExec,
-		EscapeVar:   p.parseVariable,
-		UnescapeVar: p.parseVariable,
-		Comment:     p.parseComment,
-		Partial:     p.parsePartial,
-		Delim:       p.parseDelim,
+		token.Block:       p.parseBlock,
+		token.Inverted:    p.parseBlock,
+		token.Section:     p.parseSection,
+		token.Define:      p.parseDefine,
+		token.Exec:        p.parseExec,
+		token.EscapeVar:   p.parseVariable,
+		token.UnescapeVar: p.parseVariable,
+		token.Comment:     p.parseComment,
+		token.Partial:     p.parsePartial,
+		token.Delim:       p.parseDelim,
 	}
 
 	p.next()
@@ -60,17 +63,17 @@ func NewParser(r io.Reader) (*Parser, error) {
 	return &p, nil
 }
 
-func (p *Parser) Parse() (*Template, error) {
-	t := New("")
+func (p *Parser) Parse() (Node, error) {
+	var root RootNode
 	for !p.done() {
 		var (
 			node Node
 			err  error
 		)
 		switch p.curr.Type {
-		case Literal:
+		case token.Literal:
 			node, err = p.parseLiteral()
-		case Open:
+		case token.Open:
 			p.next()
 			node, err = p.parseNode()
 			if err != nil {
@@ -83,15 +86,15 @@ func (p *Parser) Parse() (*Template, error) {
 			return nil, err
 		}
 		if node != nil {
-			t.nodes = append(t.nodes, node)
+			root.Nodes = append(root.Nodes, node)
 		}
 	}
-	return t, nil
+	return &root, nil
 }
 
 func (p *Parser) parseSection() (Node, error) {
 	p.next()
-	if p.curr.Type != Ident {
+	if p.curr.Type != token.Ident {
 		return nil, p.unexpectedToken()
 	}
 	s := SectionNode{
@@ -110,7 +113,7 @@ func (p *Parser) parseSection() (Node, error) {
 
 func (p *Parser) parseDefine() (Node, error) {
 	p.next()
-	if p.curr.Type != Ident {
+	if p.curr.Type != token.Ident {
 		return nil, p.unexpectedToken()
 	}
 	d := DefineNode{
@@ -129,13 +132,13 @@ func (p *Parser) parseDefine() (Node, error) {
 
 func (p *Parser) parseExec() (Node, error) {
 	p.next()
-	if p.curr.Type != Ident {
+	if p.curr.Type != token.Ident {
 		return nil, p.unexpectedToken()
 	}
 	e := ExecNode{
 		name: p.curr.Literal,
 	}
-	if p.peek.Type != Ident {
+	if p.peek.Type != token.Ident {
 		return &e, p.ensureClose()
 	}
 	p.next()
@@ -169,12 +172,12 @@ func (p *Parser) parsePartial() (Node, error) {
 
 func (p *Parser) parseDelim() (Node, error) {
 	p.next()
-	if p.curr.Type != Literal {
+	if p.curr.Type != token.Literal {
 		return nil, p.unexpectedToken()
 	}
 	left := p.curr.Literal
 	p.next()
-	if p.curr.Type != Literal {
+	if p.curr.Type != token.Literal {
 		return nil, p.unexpectedToken()
 	}
 	right := p.curr.Literal
@@ -185,7 +188,7 @@ func (p *Parser) parseDelim() (Node, error) {
 
 func (p *Parser) parseBlock() (Node, error) {
 	b := BlockNode{
-		inverted: p.curr.Type == Inverted,
+		inverted: p.curr.Type == token.Inverted,
 	}
 	p.next()
 	key, err := p.parseKey()
@@ -204,7 +207,7 @@ func (p *Parser) parseBlock() (Node, error) {
 func (p *Parser) parseBody(name string) ([]Node, error) {
 	var ns []Node
 	for !p.done() {
-		if p.curr.Type == Literal {
+		if p.curr.Type == token.Literal {
 			node, err := p.parseLiteral()
 			if err != nil {
 				return nil, err
@@ -212,11 +215,11 @@ func (p *Parser) parseBody(name string) ([]Node, error) {
 			ns = append(ns, node)
 			continue
 		}
-		if p.curr.Type != Open {
+		if p.curr.Type != token.Open {
 			return nil, p.unexpectedToken()
 		}
 		p.next()
-		if p.curr.Type == End {
+		if p.curr.Type == token.End {
 			break
 		}
 		node, err := p.parseNode()
@@ -227,11 +230,11 @@ func (p *Parser) parseBody(name string) ([]Node, error) {
 			ns = append(ns, node)
 		}
 	}
-	if p.curr.Type != End {
+	if p.curr.Type != token.End {
 		return nil, p.unexpectedToken()
 	}
 	p.next()
-	if p.curr.Type != Ident && p.curr.Literal != name {
+	if p.curr.Type != token.Ident && p.curr.Literal != name {
 		return nil, p.unexpectedToken()
 	}
 	return ns, p.ensureClose()
@@ -258,7 +261,7 @@ func (p *Parser) parseComment() (Node, error) {
 
 func (p *Parser) parseVariable() (Node, error) {
 	n := VariableNode{
-		unescap: p.curr.unescape(),
+		unescap: p.curr.Unescape(),
 	}
 	p.next()
 	key, err := p.parseKey()
@@ -271,12 +274,12 @@ func (p *Parser) parseVariable() (Node, error) {
 
 func (p *Parser) parseKey() (Key, error) {
 	var k Key
-	if p.curr.Type != Ident {
+	if p.curr.Type != token.Ident {
 		return k, p.unexpectedToken()
 	}
 	k.name = p.curr.Literal
 	for {
-		if p.peek.Type != Pipe {
+		if p.peek.Type != token.Pipe {
 			break
 		}
 		p.next()
@@ -292,12 +295,12 @@ func (p *Parser) parseKey() (Key, error) {
 
 func (p *Parser) parseFilter() (Filter, error) {
 	var f Filter
-	if p.curr.Type != Ident {
+	if p.curr.Type != token.Ident {
 		return f, p.unexpectedToken()
 	}
 	f.name = p.curr.Literal
 	for {
-		if !p.peek.isValue() {
+		if !p.peek.IsValue() {
 			break
 		}
 		p.next()
@@ -312,7 +315,7 @@ func (p *Parser) parseFilter() (Filter, error) {
 
 func (p *Parser) ensureClose() error {
 	p.next()
-	if p.curr.Type != Close {
+	if p.curr.Type != token.Close {
 		return p.unexpectedToken()
 	}
 	p.next()
@@ -324,7 +327,7 @@ func (p *Parser) unexpectedToken() error {
 }
 
 func (p *Parser) done() bool {
-	return p.curr.Type == EOF
+	return p.curr.Type == token.EOF
 }
 
 func (p *Parser) next() {

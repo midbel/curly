@@ -1,4 +1,4 @@
-package curly
+package token
 
 import (
 	"fmt"
@@ -32,31 +32,6 @@ const (
 	Invalid
 )
 
-const (
-	amper      = '&'
-	pound      = '#'
-	caret      = '^'
-	slash      = '/'
-	lbrace     = '{'
-	rbrace     = '}'
-	bang       = '!'
-	rangle     = '>'
-	langle     = '<'
-	arobase    = '@'
-	percent    = '%'
-	equal      = '='
-	space      = ' '
-	tab        = '\t'
-	cr         = '\r'
-	nl         = '\n'
-	underscore = '_'
-	pipe       = '|'
-	squote     = '\''
-	dquote     = '"'
-	dot        = '.'
-	dash       = '-'
-)
-
 type Position struct {
 	Line   int
 	Column int
@@ -69,7 +44,7 @@ type Token struct {
 	Type    rune
 }
 
-func (t Token) isValue() bool {
+func (t Token) IsValue() bool {
 	switch t.Type {
 	case Literal, Integer, Float, Bool, Ident:
 		return true
@@ -78,7 +53,7 @@ func (t Token) isValue() bool {
 	}
 }
 
-func (t *Token) unescape() bool {
+func (t *Token) Unescape() bool {
 	return t.Type == UnescapeVar
 }
 

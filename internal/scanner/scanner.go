@@ -1,10 +1,37 @@
-package curly
+package scanner
 
 import (
 	"bytes"
 	"io"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/midbel/curly/internal/token"
+)
+
+const (
+	amper      = '&'
+	pound      = '#'
+	caret      = '^'
+	slash      = '/'
+	lbrace     = '{'
+	rbrace     = '}'
+	bang       = '!'
+	rangle     = '>'
+	langle     = '<'
+	arobase    = '@'
+	percent    = '%'
+	equal      = '='
+	space      = ' '
+	tab        = '\t'
+	cr         = '\r'
+	nl         = '\n'
+	underscore = '_'
+	pipe       = '|'
+	squote     = '\''
+	dquote     = '"'
+	dot        = '.'
+	dash       = '-'
 )
 
 type Scanner struct {
@@ -17,7 +44,7 @@ type Scanner struct {
 	column int
 	seen   int
 
-	scan    func(*Token)
+	scan    func(*token.Token)
 	between bool
 
 	left  []rune
@@ -39,18 +66,18 @@ func Scan(r io.Reader) (*Scanner, error) {
 	return &s, nil
 }
 
-func (s *Scanner) Position() Position {
-	return Position{
+func (s *Scanner) Position() token.Position {
+	return token.Position{
 		Line:   s.line,
 		Column: s.column,
 	}
 }
 
-func (s *Scanner) Scan() Token {
-	var t Token
+func (s *Scanner) Scan() token.Token {
+	var t token.Token
 	t.Position = s.Position()
 	if s.isEOF() {
-		t.Type = EOF
+		t.Type = token.EOF
 		return t
 	}
 	if s.scan != nil {
@@ -60,11 +87,11 @@ func (s *Scanner) Scan() Token {
 	switch {
 	case s.isOpen():
 		s.skipOpen()
-		t.Type = Open
+		t.Type = token.Open
 		s.scan, s.between = s.scanType, true
 	case s.isClose():
 		s.skipClose()
-		t.Type = Close
+		t.Type = token.Close
 		s.scan, s.between = nil, false
 	case isOperator(s.char):
 		s.scanOperator(&t)
@@ -92,35 +119,35 @@ func (s *Scanner) SetDelimiter(left, right string) {
 	}
 }
 
-func (s *Scanner) scanComment(t *Token) {
+func (s *Scanner) scanComment(t *token.Token) {
 	s.scan = nil
 
 	pos := s.curr
 	for !s.isEOF() && !s.isClose() {
 		s.read()
 	}
-	t.Type = Literal
+	t.Type = token.Literal
 	if !s.isClose() {
-		t.Type = Invalid
+		t.Type = token.Invalid
 	}
 	t.Literal = strings.TrimSpace(string(s.input[pos:s.curr]))
 }
 
-func (s *Scanner) scanLiteral(t *Token) {
+func (s *Scanner) scanLiteral(t *token.Token) {
 	pos := s.curr
 	for !s.isEOF() && !s.isOpen() {
 		s.read()
 	}
-	t.Type = Literal
+	t.Type = token.Literal
 	t.Literal = string(s.input[pos:s.curr])
 }
 
-func (s *Scanner) scanIdent(t *Token) {
+func (s *Scanner) scanIdent(t *token.Token) {
 	s.scan = nil
 	s.skipBlank()
 	defer s.skipBlank()
 	if !isLetter(s.char) {
-		t.Type = Invalid
+		t.Type = token.Invalid
 		return
 	}
 	pos := s.curr
@@ -130,38 +157,38 @@ func (s *Scanner) scanIdent(t *Token) {
 	t.Literal = string(s.input[pos:s.curr])
 	switch t.Literal {
 	case "true", "false":
-		t.Type = Bool
+		t.Type = token.Bool
 	default:
-		t.Type = Ident
+		t.Type = token.Ident
 	}
 }
 
-func (s *Scanner) scanOperator(t *Token) {
-	t.Type = Invalid
+func (s *Scanner) scanOperator(t *token.Token) {
+	t.Type = token.Invalid
 	switch k := s.peek(); s.char {
 	case pipe:
-		t.Type = Pipe
+		t.Type = token.Pipe
 		if k == pipe {
-			t.Type = Or
+			t.Type = token.Or
 		}
 	case amper:
 		if k == amper {
-			t.Type = And
+			t.Type = token.And
 		}
 	case bang:
-		t.Type = Not
+		t.Type = token.Not
 	case dash:
-		t.Type = Rev
+		t.Type = token.Rev
 	default:
 	}
-	if t.Type == And || t.Type == Or {
+	if t.Type == token.And || t.Type == token.Or {
 		s.read()
 	}
 	s.read()
 	s.skipBlank()
 }
 
-func (s *Scanner) scanString(t *Token) {
+func (s *Scanner) scanString(t *token.Token) {
 	var (
 		quote = s.char
 		pos   = s.curr
@@ -171,96 +198,96 @@ func (s *Scanner) scanString(t *Token) {
 	for !s.isEOF() && s.char != quote {
 		s.read()
 	}
-	t.Type = Literal
+	t.Type = token.Literal
 	t.Literal = string(s.input[pos:s.curr])
 	if s.char != quote {
-		t.Type = Invalid
+		t.Type = token.Invalid
 	}
 	s.read()
 	s.skipBlank()
 }
 
-func (s *Scanner) scanNumber(t *Token) {
+func (s *Scanner) scanNumber(t *token.Token) {
 	pos := s.curr
 	for isDigit(s.char) {
 		s.read()
 	}
-	t.Type = Integer
+	t.Type = token.Integer
 	if s.char == dot {
 		for isDigit(s.char) {
 			s.read()
 		}
-		t.Type = Float
+		t.Type = token.Float
 	}
 	t.Literal = string(s.input[pos:s.curr])
 	s.skipBlank()
 }
 
-func (s *Scanner) scanOpenDelimiter(t *Token) {
+func (s *Scanner) scanOpenDelimiter(t *token.Token) {
 	// {{=<punct><blank>
 	s.scan = s.scanCloseDelimiter
 	s.scanDelim(t, func() bool { return !isBlank(s.char) })
 	if !isBlank(s.char) {
-		t.Type = Invalid
+		t.Type = token.Invalid
 	} else {
 		s.skipBlank()
 	}
 }
 
-func (s *Scanner) scanCloseDelimiter(t *Token) {
+func (s *Scanner) scanCloseDelimiter(t *token.Token) {
 	// <blank><punct>=}}
 	s.scan = nil
 	s.scanDelim(t, func() bool { return s.char != equal })
 	if s.char != equal {
-		t.Type = Invalid
+		t.Type = token.Invalid
 	} else {
 		s.read()
 	}
 }
 
-func (s *Scanner) scanDelim(t *Token, accept func() bool) {
+func (s *Scanner) scanDelim(t *token.Token, accept func() bool) {
 	pos := s.curr
 	for !s.isEOF() && accept() {
 		if isLetter(s.char) || isDigit(s.char) {
-			t.Type = Invalid
+			t.Type = token.Invalid
 		}
 		s.read()
 	}
 	if t.Type == 0 {
-		t.Type = Literal
+		t.Type = token.Literal
 	}
 	t.Literal = string(s.input[pos:s.curr])
 }
 
-func (s *Scanner) scanType(t *Token) {
+func (s *Scanner) scanType(t *token.Token) {
 	s.scan = s.scanIdent
 	switch s.char {
 	case pound:
-		t.Type = Block
+		t.Type = token.Block
 	case caret:
-		t.Type = Inverted
+		t.Type = token.Inverted
 	case bang:
-		t.Type = Comment
+		t.Type = token.Comment
 		s.scan = s.scanComment
 	case equal:
-		t.Type = Delim
+		t.Type = token.Delim
 		s.scan = s.scanOpenDelimiter
 	case rangle:
-		t.Type = Partial
+		t.Type = token.Partial
 	case langle:
-		t.Type = Define
+		t.Type = token.Define
 	case arobase:
-		t.Type = Exec
+		t.Type = token.Exec
 	case percent:
-		t.Type = Section
+		t.Type = token.Section
 	case slash:
-		t.Type = End
+		t.Type = token.End
 	case amper:
-		t.Type = UnescapeVar
+		t.Type = token.UnescapeVar
 	default:
-		t.Type = EscapeVar
+		t.Type = token.EscapeVar
 	}
-	if t.Type != EscapeVar {
+	if t.Type != token.EscapeVar {
 		s.read()
 	}
 	s.skipBlank()

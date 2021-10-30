@@ -1,4 +1,4 @@
-package curly
+package parser
 
 import (
 	"bufio"
@@ -27,11 +27,11 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 	prefix := strings.Repeat(" ", level)
 	fmt.Fprint(w, prefix)
 	switch n := n.(type) {
-	case *Template:
+	case *RootNode:
 		fmt.Fprint(w, "template [")
 		fmt.Fprintln(w)
-		for i := range n.nodes {
-			debugWithLevel(w, n.nodes[i], level+2)
+		for i := range n.Nodes {
+			debugWithLevel(w, n.Nodes[i], level+2)
 		}
 		fmt.Fprint(w, prefix)
 		fmt.Fprintln(w, "]")

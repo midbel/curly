@@ -6,8 +6,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/midbel/curly"
 	"github.com/midbel/toml"
+	"github.com/midbel/curly/internal/parser"
+	"github.com/midbel/curly/internal/state"
+	"github.com/midbel/curly/internal/token"
+	"github.com/midbel/curly/internal/scanner"
 )
 
 func main() {
@@ -42,22 +45,22 @@ func execTemplate(r io.Reader, file string) error {
 	if err := toml.DecodeFile(file, &data); err != nil && file != "" {
 		return err
 	}
-	t, err := curly.Parse(r)
+	t, err := parser.Parse(r)
 	if err != nil {
 		return err
 	}
-	return t.Execute(os.Stdout, data)
+	return t.Execute(os.Stdout, state.EmptyState(data))
 }
 
 func debugTemplate(r io.Reader) error {
-	return curly.Debug(r, os.Stdout)
+	return parser.Debug(r, os.Stdout)
 }
 
 func scanTemplate(r io.Reader) {
-	s, _ := curly.Scan(r)
+	s, _ := scanner.Scan(r)
 	for {
 		tok := s.Scan()
-		if tok.Type == curly.EOF || tok.Type == curly.Invalid {
+		if tok.Type == token.EOF || tok.Type == token.Invalid {
 			break
 		}
 		fmt.Println(tok)
