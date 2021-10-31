@@ -42,6 +42,7 @@ type Scanner struct {
 	next  int
 	char  rune
 
+	// position
 	line   int
 	column int
 	seen   int
@@ -49,6 +50,7 @@ type Scanner struct {
 	scan    func(*token.Token)
 	between bool
 
+	// delimiters
 	left  []rune
 	right []rune
 }
@@ -72,6 +74,15 @@ func (s *Scanner) Position() token.Position {
 	return token.Position{
 		Line:   s.line,
 		Column: s.column,
+	}
+}
+
+func (s *Scanner) SetDelimiter(left, right string) {
+	if left != "" {
+		s.left = []rune(left)
+	}
+	if right != "" {
+		s.right = []rune(right)
 	}
 }
 
@@ -103,13 +114,9 @@ func (s *Scanner) Scan() token.Token {
 	}
 	switch {
 	case s.isOpen():
-		s.skipOpen()
-		t.Type = token.Open
-		s.scan, s.between = s.scanType, true
+		s.scanOpen(&t)
 	case s.isClose():
-		s.skipClose()
-		t.Type = token.Close
-		s.scan, s.between = nil, false
+		s.scanClose(&t)
 	case isOperator(s.char) && s.between:
 		s.scanOperator(&t)
 		s.scan = nil
@@ -127,13 +134,16 @@ func (s *Scanner) Scan() token.Token {
 	return t
 }
 
-func (s *Scanner) SetDelimiter(left, right string) {
-	if left != "" {
-		s.left = []rune(left)
-	}
-	if right != "" {
-		s.right = []rune(right)
-	}
+func (s *Scanner) scanOpen(t *token.Token) {
+	s.skipOpen()
+	t.Type = token.Open
+	s.scan, s.between = s.scanType, true
+}
+
+func (s *Scanner) scanClose(t *token.Token) {
+	s.skipClose()
+	t.Type = token.Close
+	s.scan, s.between = nil, false
 }
 
 func (s *Scanner) scanComment(t *token.Token) {
@@ -350,18 +360,15 @@ func (s *Scanner) isClose() bool {
 }
 
 func (s *Scanner) isTag(set []rune) bool {
-	var (
-		siz int
-		ok  bool
-	)
+	var siz int
 	for i := 0; i < len(set); i++ {
 		char, n := utf8.DecodeRune(s.input[s.curr+siz:])
-		if ok = set[i] == char; !ok {
+		if ok := set[i] == char; !ok {
 			return false
 		}
 		siz += n
 	}
-	return ok
+	return true
 }
 
 func (s *Scanner) skipOpen() {
@@ -411,4 +418,8 @@ func isDigit(r rune) bool {
 
 func isBlank(r rune) bool {
 	return r == space || r == tab
+}
+
+func isNL(r rune) bool {
+	return r == nl || r == cr
 }
