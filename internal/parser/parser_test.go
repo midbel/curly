@@ -54,12 +54,41 @@ var testcases = []parseCase{
 	},
 	{
 		Name:  "delimiters",
-		Input: "{{= <% %> =}}<% variable %> <%{{ }}%>",
+		Input: "{{= <% %> =}}<% variable %> <%={{ }}=%>",
+    Ok: true,
 	},
+  {
+    Name: "call",
+    Input: "{{@ template}}",
+    Ok: true,
+  },
+  {
+    Name: "call-with-filters",
+    Input: "{{@ template ctx | lower}}",
+    Ok: true,
+  },
+  {
+    Name: "define",
+    Input: "{{< define}}block{{/define}}",
+    Ok: true,
+  },
+  {
+    Name: "section",
+    Input: "{{%section}}section{{/section}}",
+    Ok: true,
+  },
 	// errors
 	{
 		Name:  "block-error",
 		Input: "{{#errb}}error{{/error}}",
+	},
+	{
+		Name:  "section-error",
+		Input: "{{#errs}}error{{/error}}",
+	},
+	{
+		Name:  "define-error",
+		Input: "{{#errd}}error{{/error}}",
 	},
 }
 

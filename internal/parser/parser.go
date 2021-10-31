@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -15,6 +16,10 @@ type Error struct {
 }
 
 func (e Error) Error() string {
+	return fmt.Sprintf("%s: unexpected token %s", e.Token.Position, e.Token)
+}
+
+func (e Error) Debug() string {
 	var str strings.Builder
 	x, _ := str.WriteString(e.Token.Position.String())
 	str.WriteString(": ")
