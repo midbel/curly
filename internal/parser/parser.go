@@ -42,6 +42,8 @@ type Parser struct {
 	curr token.Token
 	peek token.Token
 
+	root *RootNode
+
 	parsers map[rune]func() (Node, error)
 }
 
@@ -57,7 +59,7 @@ func ParseString(str string) (Node, error) {
 	return Parse(strings.NewReader(str))
 }
 
-func parseFile(f string) (Node, error) {
+func ParseFile(f string) (Node, error) {
 	r, err := os.Open(f)
 	if err != nil {
 		return nil, err
@@ -73,6 +75,9 @@ func NewParser(r io.Reader) (*Parser, error) {
 
 	var p Parser
 	p.scan = s
+	p.root = &RootNode{
+		Named: make(Nodeset),
+	}
 	p.parsers = map[rune]func() (Node, error){
 		token.Block:       p.parseBlock,
 		token.Inverted:    p.parseBlock,
@@ -93,9 +98,6 @@ func NewParser(r io.Reader) (*Parser, error) {
 }
 
 func (p *Parser) Parse() (Node, error) {
-	root := RootNode{
-		Named: make(map[string]Node),
-	}
 	for !p.done() {
 		var (
 			node Node
@@ -117,10 +119,10 @@ func (p *Parser) Parse() (Node, error) {
 			return nil, err
 		}
 		if node != nil {
-			root.Nodes = append(root.Nodes, node)
+			p.root.Nodes = append(p.root.Nodes, node)
 		}
 	}
-	return &root, nil
+	return p.root, nil
 }
 
 func (p *Parser) parseSection() (Node, error) {
@@ -158,7 +160,8 @@ func (p *Parser) parseDefine() (Node, error) {
 		return nil, err
 	}
 	d.nodes = ns
-	return &d, nil
+	p.root.Register(d.name, &d)
+	return nil, nil
 }
 
 func (p *Parser) parseExec() (Node, error) {
@@ -183,22 +186,10 @@ func (p *Parser) parseExec() (Node, error) {
 
 func (p *Parser) parsePartial() (Node, error) {
 	p.next()
-
-	r, err := os.Open(p.curr.Literal)
-	if err != nil {
-		return nil, err
+	n := PartialNode{
+		file: p.curr.Literal,
 	}
-	defer r.Close()
-
-	x, err := NewParser(r)
-	if err != nil {
-		return nil, err
-	}
-	t, err := x.Parse()
-	if err != nil {
-		return nil, err
-	}
-	return t, p.ensureClose()
+	return &n, p.ensureClose()
 }
 
 func (p *Parser) parseDelim() (Node, error) {
