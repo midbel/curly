@@ -18,7 +18,7 @@ func ExampleTemplate_Define() {
 
 {{#movies}}
   [[{{title}}]]
-  {{@ character  }}
+  {{@ character character }}
 {{/movies}}
   `
 
@@ -33,12 +33,12 @@ func ExampleTemplate_Define() {
 	}
 
 	data := struct {
-		Movies []Movie
+		Movies []Movie `curly:"movies"`
 	}{
 		Movies: []Movie{
 			{
 				Title: "star wars: a new hope",
-				Characters: []Character{
+				Character: []Character{
 					{
 						Name: "Luke Skywalker",
 						Role: "hero",
@@ -53,9 +53,9 @@ func ExampleTemplate_Define() {
 					},
 				},
 			},
-      {
-        Title: "star wars: the empire strikes back",
-      },
+			{
+				Title: "star wars: the empire strikes back",
+			},
 		},
 	}
 	t, err := curly.Parse(strings.NewReader(demo))
@@ -66,11 +66,11 @@ func ExampleTemplate_Define() {
 	t.Execute(os.Stdout, data)
 
 	// Output:
-  // [star wars: a new hope]
-  //   - Luke Skywalker: hero
-  //   - Leia Organa: hero
-  //   - Anakin Skywalker
-  // [star wars: the empire strikes back]
+	// [star wars: a new hope]
+	//   - Luke Skywalker: hero
+	//   - Leia Organa: hero
+	//   - Anakin Skywalker
+	// [star wars: the empire strikes back]
 }
 
 func ExampleTemplate() {

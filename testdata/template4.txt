@@ -1,0 +1,10 @@
+{{< character}}
+{{# character}}
+  - {{name}}{{#role}}: {{role}}{{/role}}
+{{/character}}
+{{/character}}
+
+{{#movies}}
+  [[{{title}}]]
+  {{@ character character }}
+{{/movies}}

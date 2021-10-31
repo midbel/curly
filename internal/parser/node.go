@@ -12,39 +12,87 @@ import (
 )
 
 type Node interface {
-	Execute(io.StringWriter, *state.State) error
+	Execute(io.StringWriter, Nodeset, *state.State) error
 }
 
-type RootNode struct {
-	Nodes []Node
-	Named map[string]Node
-}
+type NodeList []Node
 
-func (r *RootNode) Execute(w io.StringWriter, data *state.State) error {
-	for i := range r.Nodes {
-		if err := r.Nodes[i].Execute(w, data); err != nil {
+func (n NodeList) Execute(w io.StringWriter, ns Nodeset, s *state.State) error {
+	for i := range n {
+		if err := n[i].Execute(w, ns, s); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+type Nodeset map[string]Node
+
+func (ns Nodeset) Resolve(name string) Node {
+	var n Node
+	if ns != nil {
+		n = ns[name]
+	}
+	return n
+}
+
+func (ns Nodeset) Merge(other Nodeset) Nodeset {
+	for k, v := range other {
+		if _, ok := ns[k]; ok {
+			continue
+		}
+		ns[k] = v
+	}
+	return ns
+}
+
+type RootNode struct {
+	Nodes NodeList
+	Named Nodeset
+}
+
+func (r *RootNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+	return r.Nodes.Execute(w, ns, data)
+}
+
+func (c *RootNode) Register(name string, node Node) {
+	if c.Named == nil {
+		c.Named = make(Nodeset)
+	}
+	c.Named[name] = node
+}
+
 type CommentNode struct {
 	str string
 }
 
-func (c *CommentNode) Execute(w io.StringWriter, _ *state.State) error {
+func (c *CommentNode) Execute(w io.StringWriter, _ Nodeset, _ *state.State) error {
 	w.WriteString("")
 	return nil
 }
 
 type DefineNode struct {
 	name  string
-	nodes []Node
+	nodes NodeList
 }
 
-func (d *DefineNode) Execute(w io.StringWriter, _ *state.State) error {
-	return nil
+func (d *DefineNode) Execute(w io.StringWriter, ns Nodeset, s *state.State) error {
+	return d.nodes.Execute(w, ns, s)
+}
+
+type PartialNode struct {
+	file string
+}
+
+func (p *PartialNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+	n, err := ParseFile(p.file)
+	if err != nil {
+		return err
+	}
+	if root, ok := n.(*RootNode); ok {
+		ns = root.Named.Merge(ns)
+	}
+	return n.Execute(w, ns, data)
 }
 
 type ExecNode struct {
@@ -52,37 +100,50 @@ type ExecNode struct {
 	key  Key
 }
 
-func (e *ExecNode) Execute(w io.StringWriter, _ *state.State) error {
-	return nil
+func (e *ExecNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+	n := ns.Resolve(e.name)
+	if n == nil {
+		return fmt.Errorf("node %s not found", e.name)
+	}
+	if !e.key.isZero() {
+		val, err := e.key.resolve(data)
+		if err != nil {
+			return err
+		}
+		data = state.EnclosedState(val, data)
+	}
+	return n.Execute(w, ns, data)
 }
 
 type SectionNode struct {
 	name  string
-	nodes []Node
+	nodes NodeList
 }
 
-func (s *SectionNode) Execute(w io.StringWriter, _ *state.State) error {
-	return nil
+func (s *SectionNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+	n := ns.Resolve(s.name)
+	if n != nil {
+		return n.Execute(w, ns, data)
+	}
+	return s.nodes.Execute(w, ns, data)
 }
 
 type LiteralNode struct {
 	str string
 }
 
-func (i *LiteralNode) Execute(w io.StringWriter, _ *state.State) error {
+func (i *LiteralNode) Execute(w io.StringWriter, _ Nodeset, _ *state.State) error {
 	w.WriteString(i.str)
 	return nil
 }
 
 type BlockNode struct {
-	inverted  bool
-	trimleft  bool
-	trimright bool
-	key       Key
-	nodes     []Node
+	inverted bool
+	key      Key
+	nodes    NodeList
 }
 
-func (b *BlockNode) Execute(w io.StringWriter, data *state.State) error {
+func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
 	val, err := b.key.resolve(data)
 	if err != nil {
 		return nil
@@ -96,28 +157,18 @@ func (b *BlockNode) Execute(w io.StringWriter, data *state.State) error {
 	}
 	switch k := val.Kind(); k {
 	case reflect.Struct, reflect.Map:
-		b.executeNodes(w, state.EnclosedState(val, data))
+		err = b.nodes.Execute(w, ns, state.EnclosedState(val, data))
 	case reflect.Array, reflect.Slice:
 		for i := 0; i < val.Len(); i++ {
-			err = b.executeNodes(w, state.EnclosedState(val.Index(i), data))
+			err = b.nodes.Execute(w, ns, state.EnclosedState(val.Index(i), data))
 			if err != nil {
 				return nil
 			}
 		}
 	default:
-		b.executeNodes(w, data)
+		err = b.nodes.Execute(w, ns, data)
 	}
-	return nil
-}
-
-func (b *BlockNode) executeNodes(w io.StringWriter, data *state.State) error {
-	for i := range b.nodes {
-		err := b.nodes[i].Execute(w, data)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return err
 }
 
 type VariableNode struct {
@@ -125,7 +176,7 @@ type VariableNode struct {
 	unescap bool
 }
 
-func (v *VariableNode) Execute(w io.StringWriter, data *state.State) error {
+func (v *VariableNode) Execute(w io.StringWriter, _ Nodeset, data *state.State) error {
 	val, err := v.key.resolve(data)
 	if err != nil {
 		return nil
@@ -228,6 +279,10 @@ func (f Filter) arguments(data *state.State) []reflect.Value {
 type Key struct {
 	name    string
 	filters []Filter
+}
+
+func (k Key) isZero() bool {
+	return k.name == ""
 }
 
 func (k Key) resolve(data *state.State) (reflect.Value, error) {

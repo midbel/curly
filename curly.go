@@ -15,7 +15,6 @@ type FuncMap map[string]interface{}
 type Template struct {
 	name  string
 	funcs FuncMap
-	set   map[string]*Template
 	root  parser.Node
 }
 
@@ -58,5 +57,12 @@ func (t *Template) Funcs(fm FuncMap) *Template {
 func (t *Template) Execute(w io.Writer, data interface{}) error {
 	wr := bufio.NewWriter(w)
 	defer wr.Flush()
-	return t.root.Execute(wr, state.EmptyState(data))
+	var (
+		set   parser.Nodeset
+		r, ok = t.root.(*parser.RootNode)
+	)
+	if ok {
+		set = r.Named
+	}
+	return r.Execute(wr, set, state.EmptyState(data))
 }

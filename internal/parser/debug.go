@@ -30,6 +30,9 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 	case *RootNode:
 		fmt.Fprint(w, "template [")
 		fmt.Fprintln(w)
+		for i := range n.Named {
+			debugWithLevel(w, n.Named[i], level+2)
+		}
 		for i := range n.Nodes {
 			debugWithLevel(w, n.Nodes[i], level+2)
 		}
@@ -47,7 +50,11 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 	case *DefineNode:
 		fmt.Fprint(w, "define(name: ")
 		fmt.Fprint(w, n.name)
-		fmt.Fprintln(w, ")")
+		fmt.Fprintln(w, ") [")
+		for i := range n.nodes {
+			debugWithLevel(w, n.nodes[i], level+2)
+		}
+		fmt.Fprintln(w, "]")
 	case *SectionNode:
 		fmt.Fprint(w, "section(name: ")
 		fmt.Fprint(w, n.name)

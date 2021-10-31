@@ -49,7 +49,7 @@ func execTemplate(r io.Reader, file string) error {
 	if err != nil {
 		return err
 	}
-	return t.Execute(os.Stdout, state.EmptyState(data))
+	return t.Execute(os.Stdout, nil, state.EmptyState(data))
 }
 
 func debugTemplate(r io.Reader) error {
