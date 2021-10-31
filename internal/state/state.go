@@ -56,7 +56,7 @@ func (s *State) lookupStruct(key string, value reflect.Value) (reflect.Value, er
 	t := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		sf := t.Field(i)
-		if sf.Name == key || sf.Tag.Get("tag") == key {
+		if sf.Name == key || sf.Tag.Get("curly") == key {
 			return value.Field(i), nil
 		}
 	}

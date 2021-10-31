@@ -17,6 +17,7 @@ type Node interface {
 
 type RootNode struct {
 	Nodes []Node
+	Named map[string]Node
 }
 
 func (r *RootNode) Execute(w io.StringWriter, data *state.State) error {

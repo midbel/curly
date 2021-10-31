@@ -93,7 +93,9 @@ func NewParser(r io.Reader) (*Parser, error) {
 }
 
 func (p *Parser) Parse() (Node, error) {
-	var root RootNode
+	root := RootNode{
+		Named: make(map[string]Node),
+	}
 	for !p.done() {
 		var (
 			node Node
