@@ -75,6 +75,21 @@ func (s *Scanner) Position() token.Position {
 	}
 }
 
+func (s *Scanner) GetCurrentLine() string {
+	var (
+		pos = s.curr - s.column
+		off = bytes.IndexByte(s.input[s.curr:], nl)
+	)
+	if off < 0 {
+		off = len(s.input[s.curr:])
+	}
+	if pos < 0 {
+		pos = 0
+	}
+	b := bytes.TrimSpace(s.input[pos : s.curr+off])
+	return string(b)
+}
+
 func (s *Scanner) Scan() token.Token {
 	var t token.Token
 	t.Position = s.Position()
@@ -95,12 +110,12 @@ func (s *Scanner) Scan() token.Token {
 		s.skipClose()
 		t.Type = token.Close
 		s.scan, s.between = nil, false
-	case isOperator(s.char):
+	case isOperator(s.char) && s.between:
 		s.scanOperator(&t)
-		s.scan = nil //s.scanIdent
-	case isQuote(s.char):
+		s.scan = nil
+	case isQuote(s.char) && s.between:
 		s.scanString(&t)
-	case isDigit(s.char):
+	case isDigit(s.char) && s.between:
 		s.scanNumber(&t)
 	default:
 		if s.between {

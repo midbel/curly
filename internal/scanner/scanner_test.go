@@ -99,6 +99,16 @@ var tokens = []token.Token{
 	token.CreateToken("true", token.Bool),
 	token.CreateToken("", token.EndGrp),
 	token.CreateToken("", token.Close),
+	token.CreateToken("\n", token.Literal),
+	token.CreateToken("", token.Open),
+	token.CreateToken("", token.Block),
+	token.CreateToken("block", token.Ident),
+	token.CreateToken("", token.Close),
+	token.CreateToken("- value", token.Literal),
+	token.CreateToken("", token.Open),
+	token.CreateToken("", token.End),
+	token.CreateToken("block", token.Ident),
+	token.CreateToken("", token.Close),
 }
 
 const sample = `
@@ -114,6 +124,7 @@ literal {{escape}} {{&unescape}}
 {{% section}}
 {{text | split "_" | firstn 1 | add 2.3 3.2 }}
 {{text | check text && (!false || true) }}
+{{#block}}- value{{/block}}
 `
 
 func TestScanner(t *testing.T) {

@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -11,7 +9,28 @@ import (
 	"github.com/midbel/curly/internal/token"
 )
 
-var ErrUnexpected = errors.New("unexpected token")
+type Error struct {
+	Line  string
+	Token token.Token
+}
+
+func (e Error) Error() string {
+	var str strings.Builder
+	x, _ := str.WriteString(e.Token.Position.String())
+	str.WriteString(": ")
+	x += 2
+	str.WriteString(e.Line)
+	str.WriteString("\n")
+	str.WriteString(strings.Repeat(" ", x+e.Token.Column-1))
+	var n int
+	if n = len(e.Token.Literal); n == 0 {
+		n++
+	}
+	str.WriteString(strings.Repeat("^", n))
+	str.WriteString(" unexpected token: ")
+	str.WriteString(e.Token.String())
+	return str.String()
+}
 
 type Parser struct {
 	scan *scanner.Scanner
@@ -239,7 +258,7 @@ func (p *Parser) parseBody(name string) ([]Node, error) {
 		return nil, p.unexpectedToken()
 	}
 	p.next()
-	if p.curr.Type != token.Ident && p.curr.Literal != name {
+	if p.curr.Type != token.Ident || p.curr.Literal != name {
 		return nil, p.unexpectedToken()
 	}
 	return ns, p.ensureClose()
@@ -328,7 +347,10 @@ func (p *Parser) ensureClose() error {
 }
 
 func (p *Parser) unexpectedToken() error {
-	return fmt.Errorf("<%d:%d> %w: %s", p.curr.Line, p.curr.Column, ErrUnexpected, p.curr)
+	return Error{
+		Line:  p.scan.GetCurrentLine(),
+		Token: p.curr,
+	}
 }
 
 func (p *Parser) done() bool {
