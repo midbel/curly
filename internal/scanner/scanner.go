@@ -363,12 +363,6 @@ func (s *Scanner) skipN(n int) {
 	}
 }
 
-func (s *Scanner) skipNL() {
-	for s.char == nl {
-		s.read()
-	}
-}
-
 func (s *Scanner) skipBlank() {
 	for isBlank(s.char) {
 		s.read()

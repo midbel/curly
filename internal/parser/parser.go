@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/midbel/curly/internal/scanner"
 	"github.com/midbel/curly/internal/token"
@@ -26,6 +27,10 @@ func Parse(r io.Reader) (Node, error) {
 		return nil, err
 	}
 	return p.Parse()
+}
+
+func ParseString(str string) (Node, error) {
+	return Parse(strings.NewReader(str))
 }
 
 func parseFile(f string) (Node, error) {
