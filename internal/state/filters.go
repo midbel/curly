@@ -1,8 +1,8 @@
 package state
 
 import (
-  "reflect"
-  "strings"
+	"reflect"
+	"strings"
 )
 
 var Filters = map[string]interface{}{
@@ -23,11 +23,11 @@ var Filters = map[string]interface{}{
 }
 
 func Lookup(name string) (reflect.Value, error) {
-  fn := reflect.ValueOf(Filters[name])
-  if !fn.IsValid() || fn.Kind() != reflect.Func {
-    return Invalid, ErrFound
-  }
-  return fn, nil
+	fn := reflect.ValueOf(Filters[name])
+	if !fn.IsValid() || fn.Kind() != reflect.Func {
+		return Invalid, ErrFound
+	}
+	return fn, nil
 }
 
 func reverse(value reflect.Value) reflect.Value {

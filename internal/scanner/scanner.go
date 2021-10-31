@@ -32,6 +32,8 @@ const (
 	dquote     = '"'
 	dot        = '.'
 	dash       = '-'
+	lparen     = '('
+	rparen     = ')'
 )
 
 type Scanner struct {
@@ -95,7 +97,7 @@ func (s *Scanner) Scan() token.Token {
 		s.scan, s.between = nil, false
 	case isOperator(s.char):
 		s.scanOperator(&t)
-		s.scan = s.scanIdent
+		s.scan = nil //s.scanIdent
 	case isQuote(s.char):
 		s.scanString(&t)
 	case isDigit(s.char):
@@ -166,6 +168,10 @@ func (s *Scanner) scanIdent(t *token.Token) {
 func (s *Scanner) scanOperator(t *token.Token) {
 	t.Type = token.Invalid
 	switch k := s.peek(); s.char {
+	case lparen:
+		t.Type = token.BegGrp
+	case rparen:
+		t.Type = token.EndGrp
 	case pipe:
 		t.Type = token.Pipe
 		if k == pipe {
@@ -214,6 +220,7 @@ func (s *Scanner) scanNumber(t *token.Token) {
 	}
 	t.Type = token.Integer
 	if s.char == dot {
+		s.read()
 		for isDigit(s.char) {
 			s.read()
 		}
@@ -237,7 +244,8 @@ func (s *Scanner) scanOpenDelimiter(t *token.Token) {
 func (s *Scanner) scanCloseDelimiter(t *token.Token) {
 	// <blank><punct>=}}
 	s.scan = nil
-	s.scanDelim(t, func() bool { return s.char != equal })
+	s.scanDelim(t, func() bool { return s.char != equal && !isBlank(s.char) })
+	s.skipBlank()
 	if s.char != equal {
 		t.Type = token.Invalid
 	} else {
@@ -372,17 +380,8 @@ func (s *Scanner) peek() rune {
 	return r
 }
 
-func isTag(r rune) bool {
-	switch r {
-	case pound, caret, rangle, langle, percent, arobase, slash, amper, pipe, equal:
-	default:
-		return false
-	}
-	return true
-}
-
 func isOperator(r rune) bool {
-	return r == pipe || r == amper || r == bang || r == dash
+	return r == pipe || r == amper || r == bang || r == dash || r == lparen || r == rparen
 }
 
 func isQuote(r rune) bool {

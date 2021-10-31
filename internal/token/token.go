@@ -29,6 +29,8 @@ const (
 	Exec
 	Comment
 	End
+	BegGrp
+	EndGrp
 	Invalid
 )
 
@@ -42,6 +44,30 @@ type Token struct {
 	Literal string
 	Unescap bool
 	Type    rune
+}
+
+func CreateToken(literal string, kind rune) Token {
+	return Token{
+		Literal: literal,
+		Type:    kind,
+	}
+}
+
+func (t Token) Equal(other Token) bool {
+	return t.Literal == other.Literal && t.Type == other.Type
+}
+
+func (t Token) IsEOF() bool {
+	return t.Type == EOF
+}
+
+func (t Token) IsStructural() bool {
+	switch t.Type {
+	case Open, Close, Delim, Block, Inverted, Pipe, Rev, Partial, Section, Define, Exec, End:
+		return true
+	default:
+		return false
+	}
 }
 
 func (t Token) IsValue() bool {
@@ -106,6 +132,10 @@ func (t Token) String() string {
 		prefix = "boolean"
 	case Literal:
 		prefix = "literal"
+	case BegGrp:
+		return "begin-group"
+	case EndGrp:
+		return "end-group"
 	case Invalid:
 		prefix = "invalid"
 	default:

@@ -1,13 +1,13 @@
 package state
 
 import (
-  "errors"
-  "reflect"
+	"errors"
+	"reflect"
 )
 
 var (
-  Invalid reflect.Value
-  ErrFound = errors.New("not found")
+	Invalid  reflect.Value
+	ErrFound = errors.New("not found")
 )
 
 type State struct {

@@ -19,8 +19,12 @@ type RootNode struct {
 	Nodes []Node
 }
 
-func (r *RootNode) Execute(w io.StringWriter, _ *state.State) error {
-	w.WriteString("")
+func (r *RootNode) Execute(w io.StringWriter, data *state.State) error {
+	for i := range r.Nodes {
+		if err := r.Nodes[i].Execute(w, data); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -70,9 +74,11 @@ func (i *LiteralNode) Execute(w io.StringWriter, _ *state.State) error {
 }
 
 type BlockNode struct {
-	inverted bool
-	key      Key
-	nodes    []Node
+	inverted  bool
+	trimleft  bool
+	trimright bool
+	key       Key
+	nodes     []Node
 }
 
 func (b *BlockNode) Execute(w io.StringWriter, data *state.State) error {

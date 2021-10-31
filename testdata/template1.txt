@@ -26,3 +26,5 @@ hello {{ world }} - hello {{world}}
 {{! > partial }}
 
 {{! comment}}
+
+{{= <% %> =}}
