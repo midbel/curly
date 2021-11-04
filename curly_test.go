@@ -10,16 +10,17 @@ import (
 
 func ExampleTemplate_Define() {
 	const demo = `
-{{< character}}
-{{# character}}
+{{< list }}
+{{- # character -}}
   - {{name}}{{#role}}: {{role}}{{/role}}
-{{/character}}
-{{/character}}
+{{/ character -}}
+{{/ list }}
 
-{{#movies}}
-  [[{{title}}]]
-  {{@ character character }}
-{{/movies}}
+
+{{#movies -}}
+[[{{title}}]]
+{{@ list character -}}
+{{/movies -}}
 	`
 
 	type Character struct {
@@ -66,27 +67,27 @@ func ExampleTemplate_Define() {
 	t.Execute(os.Stdout, data)
 
 	// Output:
-	// [star wars: a new hope]
+	// [[star wars: a new hope]]
 	//   - Luke Skywalker: hero
 	//   - Leia Organa: hero
 	//   - Anakin Skywalker
-	// [star wars: the empire strikes back]
+	// [[star wars: the empire strikes back]]
 }
 
 func ExampleTemplate_Block() {
 	const demo = `
-{{< contact }}
-contact: {{email}}
-{{/contact}}
+{{< contact -}}
+contact: {{email -}}
+{{/contact -}}
 repositories:
-{{# repo}}
+{{# repo -}}
 - {{Name}} (version: {{Version}})
-{{/ repo}}
+{{/ repo -}}
 
 {{% contact }}
 contact: noreply@foobar.org
 {{/ contact }}
-{{% licence }}
+{{% licence -}}
 licence: MIT
 {{/ licence}}
 	`
@@ -130,9 +131,9 @@ licence: MIT
 func ExampleTemplate() {
 	const demo = `
 repositories:
-{{# repo}}
+{{# repo -}}
 - {{Name}} (version: {{Version}})
-{{/ repo}}
+{{/ repo -}}
 
 contact: {{email}}
   `

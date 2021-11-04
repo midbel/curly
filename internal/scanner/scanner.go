@@ -51,8 +51,10 @@ type Scanner struct {
 	between bool
 
 	// delimiters
-	left  []rune
-	right []rune
+	left      []rune
+	leftdash  []rune
+	right     []rune
+	rightdash []rune
 }
 
 func Scan(r io.Reader) (*Scanner, error) {
@@ -61,13 +63,21 @@ func Scan(r io.Reader) (*Scanner, error) {
 		return nil, err
 	}
 	s := Scanner{
-		input: bytes.ReplaceAll(buf, []byte{cr, nl}, []byte{nl}),
-		line:  1,
-		left:  []rune{lbrace, lbrace},
-		right: []rune{rbrace, rbrace},
+		input:     bytes.ReplaceAll(buf, []byte{cr, nl}, []byte{nl}),
+		line:      1,
+		left:      []rune{lbrace, lbrace},
+		leftdash:  []rune{lbrace, lbrace, dash},
+		right:     []rune{rbrace, rbrace},
+		rightdash: []rune{dash, rbrace, rbrace},
 	}
 	s.read()
 	return &s, nil
+}
+
+func (s *Scanner) SkipNL() {
+	for isNL(s.char) {
+		s.read()
+	}
 }
 
 func (s *Scanner) Position() token.Position {
@@ -80,9 +90,11 @@ func (s *Scanner) Position() token.Position {
 func (s *Scanner) SetDelimiter(left, right string) {
 	if left != "" {
 		s.left = []rune(left)
+		s.leftdash = append([]rune(left), dash)
 	}
 	if right != "" {
 		s.right = []rune(right)
+		s.rightdash = append([]rune{dash}, []rune(right)...)
 	}
 }
 
@@ -135,14 +147,23 @@ func (s *Scanner) Scan() token.Token {
 }
 
 func (s *Scanner) scanOpen(t *token.Token) {
-	s.skipOpen()
 	t.Type = token.Open
+	s.skipOpen()
+	if s.char == dash {
+		s.read()
+		s.skipBlank()
+		t.Type = token.OpenTrim
+	}
 	s.scan, s.between = s.scanType, true
 }
 
 func (s *Scanner) scanClose(t *token.Token) {
-	s.skipClose()
 	t.Type = token.Close
+	if s.char == dash {
+		s.read()
+		t.Type = token.CloseTrim
+	}
+	s.skipClose()
 	s.scan, s.between = nil, false
 }
 
@@ -352,11 +373,11 @@ func (s *Scanner) isEOF() bool {
 }
 
 func (s *Scanner) isOpen() bool {
-	return s.isTag(s.left)
+	return s.isTag(s.left) || s.isTag(s.leftdash)
 }
 
 func (s *Scanner) isClose() bool {
-	return s.isTag(s.right)
+	return s.isTag(s.right) || s.isTag(s.rightdash)
 }
 
 func (s *Scanner) isTag(set []rune) bool {

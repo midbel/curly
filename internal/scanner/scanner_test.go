@@ -156,3 +156,19 @@ func TestScanner(t *testing.T) {
 		t.Errorf("mismatched tokens generated! want %d, got %d", len(tokens), total)
 	}
 }
+
+func BenchmarkScanner_Scan(b *testing.B) {
+	s, err := scanner.Scan(strings.NewReader(sample))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		for {
+			t := s.Scan()
+			if t.IsEOF() {
+				break
+			}
+		}
+	}
+}

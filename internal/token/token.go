@@ -12,7 +12,9 @@ const (
 	Float
 	Bool
 	Open
+	OpenTrim
 	Close
+	CloseTrim
 	Delim
 	Block
 	Inverted
@@ -100,8 +102,12 @@ func (t Token) String() string {
 		return "<pipe>"
 	case Open:
 		return "<open>"
+	case OpenTrim:
+		return "<open-trim>"
 	case Close:
 		return "<close>"
+	case CloseTrim:
+		return "<close-trim>"
 	case Block:
 		return "<block>"
 	case Define:

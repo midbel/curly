@@ -106,7 +106,7 @@ func (p *Parser) Parse() (Node, error) {
 		switch p.curr.Type {
 		case token.Literal:
 			node, err = p.parseLiteral()
-		case token.Open:
+		case token.Open, token.OpenTrim:
 			p.next()
 			node, err = p.parseNode()
 			if err != nil {
@@ -159,6 +159,7 @@ func (p *Parser) parseDefine() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	p.scan.SkipNL()
 	d.nodes = ns
 	p.root.Register(d.name, &d)
 	return nil, nil
@@ -237,7 +238,7 @@ func (p *Parser) parseBody(name string) ([]Node, error) {
 			ns = append(ns, node)
 			continue
 		}
-		if p.curr.Type != token.Open {
+		if p.curr.Type != token.Open && p.curr.Type != token.OpenTrim {
 			return nil, p.unexpectedToken()
 		}
 		p.next()
@@ -337,7 +338,7 @@ func (p *Parser) parseFilter() (Filter, error) {
 
 func (p *Parser) ensureClose() error {
 	p.next()
-	if p.curr.Type != token.Close {
+	if p.curr.Type != token.Close && p.curr.Type != token.CloseTrim {
 		return p.unexpectedToken()
 	}
 	p.next()
@@ -358,4 +359,11 @@ func (p *Parser) done() bool {
 func (p *Parser) next() {
 	p.curr = p.peek
 	p.peek = p.scan.Scan()
+
+	if p.peek.Type == token.OpenTrim && p.curr.Type == token.Literal {
+		p.curr.Literal = strings.TrimSuffix(p.curr.Literal, "\n")
+	}
+	if p.curr.Type == token.CloseTrim && p.peek.Type == token.Literal {
+		p.peek.Literal = strings.TrimPrefix(p.peek.Literal, "\n")
+	}
 }
