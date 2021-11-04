@@ -67,7 +67,6 @@ type CommentNode struct {
 }
 
 func (c *CommentNode) Execute(w io.StringWriter, _ Nodeset, _ *state.State) error {
-	w.WriteString("")
 	return nil
 }
 

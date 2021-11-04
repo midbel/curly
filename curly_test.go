@@ -76,6 +76,7 @@ func ExampleTemplate_Define() {
 
 func ExampleTemplate_Block() {
 	const demo = `
+{{! comment are not rendered }}
 {{< contact -}}
 contact: {{email -}}
 {{/contact -}}

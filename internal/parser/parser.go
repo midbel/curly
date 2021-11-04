@@ -360,10 +360,10 @@ func (p *Parser) next() {
 	p.curr = p.peek
 	p.peek = p.scan.Scan()
 
-	if p.peek.Type == token.OpenTrim && p.curr.Type == token.Literal {
+	if p.peek.TrimRight() && p.curr.Type == token.Literal {
 		p.curr.Literal = strings.TrimSuffix(p.curr.Literal, "\n")
 	}
-	if p.curr.Type == token.CloseTrim && p.peek.Type == token.Literal {
+	if p.curr.TrimLeft() && p.peek.Type == token.Literal {
 		p.peek.Literal = strings.TrimPrefix(p.peek.Literal, "\n")
 	}
 }

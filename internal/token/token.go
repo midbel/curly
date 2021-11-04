@@ -59,6 +59,14 @@ func CreateToken(literal string, kind rune) Token {
 	}
 }
 
+func (t Token) TrimLeft() bool {
+	return t.Type == CloseTrim
+}
+
+func (t Token) TrimRight() bool {
+	return t.Type == OpenTrim
+}
+
 func (t Token) Equal(other Token) bool {
 	return t.Literal == other.Literal && t.Type == other.Type
 }
