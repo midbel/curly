@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/midbel/curly/internal/parser"
 	"github.com/midbel/curly/internal/state"
@@ -12,16 +13,23 @@ import (
 
 type FuncMap map[string]interface{}
 
+var Filters = FuncMap{
+	"lower": strings.ToLower,
+	"upper": strings.ToUpper,
+	"title": strings.Title,
+	"trim":  strings.TrimSpace,
+}
+
 type Template struct {
-	name  string
-	funcs FuncMap
-	root  parser.Node
+	name    string
+	filters FuncMap
+	root    parser.Node
 }
 
 func New(name string) *Template {
 	return &Template{
-		name:  name,
-		funcs: make(FuncMap),
+		name:    name,
+		filters: make(FuncMap),
 	}
 }
 
@@ -49,7 +57,7 @@ func (t *Template) Parse(r io.Reader) (*Template, error) {
 
 func (t *Template) Funcs(fm FuncMap) *Template {
 	for k, f := range fm {
-		t.funcs[k] = f
+		t.filters[k] = f
 	}
 	return t
 }
@@ -64,5 +72,6 @@ func (t *Template) Execute(w io.Writer, data interface{}) error {
 	if ok {
 		set = r.Named
 	}
-	return r.Execute(wr, set, state.EmptyState(data))
+	filters := state.FuncMap(t.filters)
+	return r.Execute(wr, set, state.EmptyState(data, filters))
 }

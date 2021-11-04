@@ -10,20 +10,38 @@ var (
 	ErrFound = errors.New("not found")
 )
 
+type FuncMap map[string]interface{}
+
 type State struct {
 	parent  *State
 	current reflect.Value
+	filters map[string]interface{}
 }
 
-func EmptyState(data interface{}) *State {
-	return EnclosedState(data, nil)
+func EmptyState(data interface{}, filters FuncMap) *State {
+	return EnclosedState(data, nil, filters)
 }
 
-func EnclosedState(data interface{}, parent *State) *State {
+func EnclosedState(data interface{}, parent *State, filters FuncMap) *State {
 	return &State{
 		current: valueOf(data),
 		parent:  parent,
+		filters: filters,
 	}
+}
+
+func (s *State) Lookup(name string) (reflect.Value, error) {
+	if s.filters == nil && s.parent != nil {
+		return s.parent.Lookup(name)
+	}
+	fn := reflect.ValueOf(s.filters[name])
+	if !fn.IsValid() || fn.Kind() != reflect.Func {
+		if s.parent != nil {
+			return s.parent.Lookup(name)
+		}
+		return Invalid, ErrFound
+	}
+	return fn, nil
 }
 
 func (s *State) Resolve(key string) (reflect.Value, error) {

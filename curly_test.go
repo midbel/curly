@@ -12,7 +12,7 @@ func ExampleTemplate_Define() {
 	const demo = `
 {{< list }}
 {{- # character -}}
-  - {{name}}{{#role}}: {{role}}{{/role}}
+  - {{ name | title }}{{#role}}: {{role}}{{/role}}
 {{/ character -}}
 {{/ list }}
 
@@ -41,15 +41,15 @@ func ExampleTemplate_Define() {
 				Title: "star wars: a new hope",
 				Character: []Character{
 					{
-						Name: "Luke Skywalker",
+						Name: "luke skywalker",
 						Role: "hero",
 					},
 					{
-						Name: "Leia Organa",
+						Name: "leia organa",
 						Role: "hero",
 					},
 					{
-						Name: "Anakin Skywalker",
+						Name: "anakin skywalker",
 						Role: "",
 					},
 				},
@@ -59,7 +59,7 @@ func ExampleTemplate_Define() {
 			},
 		},
 	}
-	t, err := curly.Parse(strings.NewReader(demo))
+	t, err := curly.New("demo").Funcs(curly.Filters).Parse(strings.NewReader(demo))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -78,7 +78,7 @@ func ExampleTemplate_Block() {
 	const demo = `
 {{! comment are not rendered }}
 {{< contact -}}
-contact: {{email -}}
+contact: {{email | lower -}}
 {{/contact -}}
 repositories:
 {{# repo -}}
@@ -113,7 +113,7 @@ licence: MIT
 			},
 		},
 	}
-	t, err := curly.Parse(strings.NewReader(demo))
+	t, err := curly.New("demo").Funcs(curly.Filters).Parse(strings.NewReader(demo))
 	if err != nil {
 		fmt.Println("error parsing template:", err)
 		return

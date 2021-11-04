@@ -109,7 +109,7 @@ func (e *ExecNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) err
 		if err != nil {
 			return err
 		}
-		data = state.EnclosedState(val, data)
+		data = state.EnclosedState(val, data, nil)
 	}
 	return n.Execute(w, ns, data)
 }
@@ -156,10 +156,10 @@ func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) er
 	}
 	switch k := val.Kind(); k {
 	case reflect.Struct, reflect.Map:
-		err = b.nodes.Execute(w, ns, state.EnclosedState(val, data))
+		err = b.nodes.Execute(w, ns, state.EnclosedState(val, data, nil))
 	case reflect.Array, reflect.Slice:
 		for i := 0; i < val.Len(); i++ {
-			err = b.nodes.Execute(w, ns, state.EnclosedState(val.Index(i), data))
+			err = b.nodes.Execute(w, ns, state.EnclosedState(val.Index(i), data, nil))
 			if err != nil {
 				return nil
 			}
@@ -227,7 +227,7 @@ var (
 )
 
 func (f Filter) apply(data *state.State, value reflect.Value) (reflect.Value, error) {
-	fn, err := state.Lookup(f.name)
+	fn, err := data.Lookup(f.name)
 	if err != nil {
 		return fn, err
 	}
