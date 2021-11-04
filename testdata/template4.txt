@@ -1,10 +1,11 @@
-{{< character}}
-{{# character}}
-  - {{name}}{{#role}}: {{role}}{{/role}}
-{{/character}}
-{{/character}}
+{{< contact }}
+contact: {{email}}
+{{/ contact}}
+repositories:
+{{# repo}}
+- {{Name}} (version: {{Version}})
+{{/ repo}}
 
-{{#movies}}
-  [[{{title}}]]
-  {{@ character character }}
-{{/movies}}
+{{% contact }}
+contact: noreply@foobar.org
+{{/ contact }}

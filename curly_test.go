@@ -20,7 +20,7 @@ func ExampleTemplate_Define() {
   [[{{title}}]]
   {{@ character character }}
 {{/movies}}
-  `
+	`
 
 	type Character struct {
 		Name string `curly:"name"`
@@ -73,6 +73,60 @@ func ExampleTemplate_Define() {
 	// [star wars: the empire strikes back]
 }
 
+func ExampleTemplate_Block() {
+	const demo = `
+{{< contact }}
+contact: {{email}}
+{{/contact}}
+repositories:
+{{# repo}}
+- {{Name}} (version: {{Version}})
+{{/ repo}}
+
+{{% contact }}
+contact: noreply@foobar.org
+{{/ contact }}
+{{% licence }}
+licence: MIT
+{{/ licence}}
+	`
+	type Repo struct {
+		Name    string
+		Version string
+	}
+
+	data := struct {
+		Email string `curly:"email"`
+		Repos []Repo `curly:"repo"`
+	}{
+		Email: "midbel@foobar.org",
+		Repos: []Repo{
+			{
+				Name:    "curly",
+				Version: "0.0.1",
+			},
+			{
+				Name:    "toml",
+				Version: "0.1.1",
+			},
+		},
+	}
+	t, err := curly.Parse(strings.NewReader(demo))
+	if err != nil {
+		fmt.Println("error parsing template:", err)
+		return
+	}
+	t.Execute(os.Stdout, data)
+
+	// Output:
+	// repositories:
+	// - curly (version: 0.0.1)
+	// - toml (version: 0.1.1)
+	//
+	// contact: midbel@foobar.org
+	// licence: MIT
+}
+
 func ExampleTemplate() {
 	const demo = `
 repositories:
@@ -106,7 +160,7 @@ contact: {{email}}
 	}
 	t, err := curly.Parse(strings.NewReader(demo))
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("error parsing template:", err)
 		return
 	}
 	t.Execute(os.Stdout, data)
