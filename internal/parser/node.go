@@ -259,7 +259,7 @@ func (f Filter) apply(data *state.State, value reflect.Value) (reflect.Value, er
 	}
 	rs := fn.Call(args)
 	if len(rs) == 2 && rs[1].Type() == errorType {
-		err = rs[1].Interface().(error)
+		err, _ = rs[1].Interface().(error)
 	}
 	if rs[0].Type() == reflectValueType {
 		rs[0] = rs[0].Interface().(reflect.Value)

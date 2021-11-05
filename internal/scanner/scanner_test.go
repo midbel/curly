@@ -158,12 +158,11 @@ func TestScanner(t *testing.T) {
 }
 
 func BenchmarkScanner_Scan(b *testing.B) {
-	s, err := scanner.Scan(strings.NewReader(sample))
-	if err != nil {
-		b.Fatal(err)
-	}
-	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
+		s, err := scanner.Scan(strings.NewReader(sample))
+		if err != nil {
+			b.Fatal(err)
+		}
 		for {
 			t := s.Scan()
 			if t.IsEOF() {

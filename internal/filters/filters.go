@@ -1,21 +1,41 @@
 package filters
 
-func First() (interface{}, error) {
-  return FirstN()
+import (
+	"errors"
+	"fmt"
+	"reflect"
+)
+
+var (
+	zero            reflect.Value
+	ErrIncompatible = errors.New("incompatible type")
+)
+
+func isArray(value reflect.Value) error {
+	switch value.Kind() {
+	case reflect.Slice, reflect.Array:
+		return nil
+	default:
+		return fmt.Errorf("%s can not be used as an array", value)
+	}
 }
 
-func Last() (interface{}, error) {
-  return LastN()
+func isString(value reflect.Value) error {
+	switch value.Kind() {
+	case reflect.String:
+		return nil
+	default:
+		return fmt.Errorf("%s can not be used as a string", value)
+	}
 }
 
-func FirstN() (interface{}, error) {
-  return nil, nil
-}
-
-func LastN() (interface{}, error) {
-  return nil, nil
-}
-
-func Reverse() (interface{}, error) {
-  return nil, nil
+func isNumeric(value reflect.Value) error {
+	switch value.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Float32, reflect.Float64:
+	default:
+		return fmt.Errorf("%s can not be used as a number", value)
+	}
+	return nil
 }

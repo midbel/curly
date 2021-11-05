@@ -129,6 +129,52 @@ licence: MIT
 	// licence: MIT
 }
 
+func ExampleTemplate_Filters() {
+	const demo = `
+repositories:
+{{# repo | reverse -}}
+- {{Name}} (version: {{Version}})
+{{/ repo -}}
+
+contact: {{email}}
+  `
+
+	type Repo struct {
+		Name    string
+		Version string
+	}
+
+	data := struct {
+		Email string `curly:"email"`
+		Repos []Repo `curly:"repo"`
+	}{
+		Email: "midbel@foobar.org",
+		Repos: []Repo{
+			{
+				Name:    "curly",
+				Version: "0.0.1",
+			},
+			{
+				Name:    "toml",
+				Version: "0.1.1",
+			},
+		},
+	}
+	t, err := curly.New("demo").Funcs(curly.Filters).Parse(strings.NewReader(demo))
+	if err != nil {
+		fmt.Println("error parsing template:", err)
+		return
+	}
+	t.Execute(os.Stdout, data)
+
+	// Output:
+	// repositories:
+	// - toml (version: 0.1.1)
+	// - curly (version: 0.0.1)
+	//
+	// contact: midbel@foobar.org
+}
+
 func ExampleTemplate() {
 	const demo = `
 repositories:
