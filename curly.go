@@ -51,13 +51,16 @@ var Filters = FuncMap{
 	"rand": filters.Rand,
 	"inc":  filters.Increment,
 	"dec":  filters.Decrement,
-	// comparaison function
+	// relation/logical filters
 	"eq": filters.Equal,
 	"ne": filters.NotEqual,
 	"gt": filters.Greater,
 	"ge": filters.GreaterEqual,
 	"lt": filters.Lesser,
 	"le": filters.LesserEqual,
+	"and": filters.And,
+	"or": filters.Or,
+	"not": filters.Not,
 	// time function
 	"now": filters.Now,
 	// others

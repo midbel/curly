@@ -86,21 +86,6 @@ var tokens = []token.Token{
 	token.CreateToken("", token.Close),
 	token.CreateToken("\n", token.Literal),
 	token.CreateToken("", token.Open),
-	token.CreateToken("", token.EscapeVar),
-	token.CreateToken("text", token.Ident),
-	token.CreateToken("", token.Pipe),
-	token.CreateToken("check", token.Ident),
-	token.CreateToken("text", token.Ident),
-	token.CreateToken("", token.And),
-	token.CreateToken("", token.BegGrp),
-	token.CreateToken("", token.Not),
-	token.CreateToken("false", token.Bool),
-	token.CreateToken("", token.Or),
-	token.CreateToken("true", token.Bool),
-	token.CreateToken("", token.EndGrp),
-	token.CreateToken("", token.Close),
-	token.CreateToken("\n", token.Literal),
-	token.CreateToken("", token.Open),
 	token.CreateToken("", token.Block),
 	token.CreateToken("block", token.Ident),
 	token.CreateToken("", token.Close),
@@ -123,7 +108,6 @@ literal {{escape}} {{&unescape}}
 {{@ call}}
 {{% section}}
 {{text | split "_" | firstn 1 | add 2.3 3.2 }}
-{{text | check text && (!false || true) }}
 {{#block}}- value{{/block}}
 `
 

@@ -21,10 +21,6 @@ const (
 	EscapeVar
 	UnescapeVar
 	Pipe
-	Rev
-	And
-	Or
-	Not
 	Partial
 	Section
 	Define
@@ -77,7 +73,7 @@ func (t Token) IsEOF() bool {
 
 func (t Token) IsStructural() bool {
 	switch t.Type {
-	case Open, Close, Delim, Block, Inverted, Pipe, Rev, Partial, Section, Define, Exec, End:
+	case Open, Close, Delim, Block, Inverted, Pipe, Partial, Section, Define, Exec, End:
 		return true
 	default:
 		return false
@@ -102,10 +98,6 @@ func (t Token) String() string {
 	switch t.Type {
 	case EOF:
 		return "<eof>"
-	case And:
-		return "<and>"
-	case Or:
-		return "<or>"
 	case Pipe:
 		return "<pipe>"
 	case Open:
@@ -136,10 +128,6 @@ func (t Token) String() string {
 		return "<delimiter>"
 	case End:
 		return "<end>"
-	case Not:
-		return "<not>"
-	case Rev:
-		return "<reverse>"
 	case Ident:
 		prefix = "identifier"
 	case Integer:

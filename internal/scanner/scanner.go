@@ -213,28 +213,14 @@ func (s *Scanner) scanIdent(t *token.Token) {
 
 func (s *Scanner) scanOperator(t *token.Token) {
 	t.Type = token.Invalid
-	switch k := s.peek(); s.char {
+	switch s.char {
 	case lparen:
 		t.Type = token.BegGrp
 	case rparen:
 		t.Type = token.EndGrp
 	case pipe:
 		t.Type = token.Pipe
-		if k == pipe {
-			t.Type = token.Or
-		}
-	case amper:
-		if k == amper {
-			t.Type = token.And
-		}
-	case bang:
-		t.Type = token.Not
-	case dash:
-		t.Type = token.Rev
 	default:
-	}
-	if t.Type == token.And || t.Type == token.Or {
-		s.read()
 	}
 	s.read()
 	s.skipBlank()
@@ -418,7 +404,7 @@ func (s *Scanner) peek() rune {
 }
 
 func isOperator(r rune) bool {
-	return r == pipe || r == amper || r == bang || r == dash || r == lparen || r == rparen
+	return r == pipe || r == lparen || r == rparen
 }
 
 func isQuote(r rune) bool {
