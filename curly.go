@@ -2,6 +2,7 @@ package curly
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -24,12 +25,14 @@ type Template struct {
 	name    string
 	filters FuncMap
 	root    parser.Node
+	templates map[string]*Template
 }
 
 func New(name string) *Template {
 	return &Template{
 		name:    name,
 		filters: make(FuncMap),
+		templates: make(map[string]*Template),
 	}
 }
 
@@ -62,6 +65,17 @@ func (t *Template) Funcs(fm FuncMap) *Template {
 	return t
 }
 
+func (t *Template) ParseFiles(files ...string) (*Template, error) {
+	for _, f := range files {
+		tpl, err := ParseFile(f)
+		if err != nil {
+			return nil, err
+		}
+		_ = tpl
+	}
+	return t, nil
+}
+
 func (t *Template) Execute(w io.Writer, data interface{}) error {
 	wr := bufio.NewWriter(w)
 	defer wr.Flush()
@@ -74,4 +88,12 @@ func (t *Template) Execute(w io.Writer, data interface{}) error {
 	}
 	filters := state.FuncMap(t.filters)
 	return r.Execute(wr, set, state.EmptyState(data, filters))
+}
+
+func (t *Template) ExecuteTemplate(name string, w io.Writer, data interface{}) error {
+	tpl, ok := t.templates[name]
+	if !ok {
+		return fmt.Errorf("%s: template not defined", name)
+	}
+	return tpl.Execute(w, data)
 }
