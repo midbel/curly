@@ -82,3 +82,8 @@ func Increment(fst reflect.Value) (reflect.Value, error) {
 	snd := reflect.ValueOf(1)
 	return Add(fst, snd)
 }
+
+func Decrement(fst reflect.Value) (reflect.Value, error) {
+	snd := reflect.ValueOf(1)
+	return Sub(fst, snd)
+}

@@ -11,6 +11,16 @@ var (
 	ErrIncompatible = errors.New("incompatible type")
 )
 
+func Len(value reflect.Value) (reflect.Value, error) {
+	var n int
+	switch value.Kind() {
+	case reflect.String, reflect.Slice, reflect.Array, reflect.Map:
+		n = value.Len()
+	default:
+	}
+	return reflect.ValueOf(n), nil
+}
+
 func isArray(value reflect.Value) error {
 	switch value.Kind() {
 	case reflect.Slice, reflect.Array:

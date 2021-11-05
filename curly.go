@@ -17,15 +17,17 @@ type FuncMap map[string]interface{}
 
 var Filters = FuncMap{
 	// strings filters
-	"split": strings.Split,
-	"join":  strings.Join,
-	"lower": strings.ToLower,
-	"upper": strings.ToUpper,
-	"title": strings.Title,
-	"trim":  strings.TrimSpace,
+	"split":  strings.Split,
+	"join":   strings.Join,
+	"lower":  strings.ToLower,
+	"upper":  strings.ToUpper,
+	"title":  strings.Title,
+	"trim":   strings.TrimSpace,
+	"printf": fmt.Sprintf,
 	// filename filters
 	"basename": filepath.Base,
 	"dirname":  filepath.Dir,
+	// "join": filepath.Join,
 	// array/slice filters
 	"reverse": filters.Reverse,
 	"first":   filters.First,
@@ -38,18 +40,28 @@ var Filters = FuncMap{
 	"sha256sum": filters.SumSHA256,
 	"sha512sum": filters.SumSHA512,
 	// math filters
-	"add":       filters.Add,
-	"sub":       filters.Sub,
-	"mul":       filters.Mul,
-	"div":       filters.Div,
-	"mod":       filters.Mod,
-	"pow":       filters.Pow,
-	"min":       filters.Min,
-	"max":       filters.Max,
-	"rand":      filters.Rand,
-	"increment": filters.Increment,
+	"add":  filters.Add,
+	"sub":  filters.Sub,
+	"mul":  filters.Mul,
+	"div":  filters.Div,
+	"mod":  filters.Mod,
+	"pow":  filters.Pow,
+	"min":  filters.Min,
+	"max":  filters.Max,
+	"rand": filters.Rand,
+	"inc":  filters.Increment,
+	"dec":  filters.Decrement,
+	// comparaison function
+	"eq": filters.Equal,
+	"ne": filters.NotEqual,
+	"gt": filters.Greater,
+	"ge": filters.GreaterEqual,
+	"lt": filters.Lesser,
+	"le": filters.LesserEqual,
 	// time function
 	"now": filters.Now,
+	// others
+	"len": filters.Len,
 }
 
 type Template struct {
