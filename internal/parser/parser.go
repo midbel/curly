@@ -81,11 +81,14 @@ func NewParser(r io.Reader) (*Parser, error) {
 	p.parsers = map[rune]func() (Node, error){
 		token.Block:       p.parseBlock,
 		token.Inverted:    p.parseBlock,
+		token.Assignment:  p.parseAssignment,
 		token.Section:     p.parseSection,
 		token.Define:      p.parseDefine,
 		token.Exec:        p.parseExec,
 		token.EscapeVar:   p.parseVariable,
 		token.UnescapeVar: p.parseVariable,
+		token.SpecialVar:  p.parseVariable,
+		token.EnvVar:      p.parseVariable,
 		token.Comment:     p.parseComment,
 		token.Partial:     p.parsePartial,
 		token.Delim:       p.parseDelim,
@@ -123,6 +126,24 @@ func (p *Parser) Parse() (Node, error) {
 		}
 	}
 	return p.root, nil
+}
+
+func (p *Parser) parseAssignment() (Node, error) {
+	p.next()
+	if p.curr.Type != token.Ident {
+		return nil, p.unexpectedToken()
+	}
+	a := AssignmentNode{
+		name: p.curr.Literal,
+	}
+	p.next()
+
+	key, err := p.parseKey()
+	if err != nil {
+		return nil, err
+	}
+	a.key = key
+	return &a, nil
 }
 
 func (p *Parser) parseSection() (Node, error) {
@@ -285,6 +306,7 @@ func (p *Parser) parseComment() (Node, error) {
 func (p *Parser) parseVariable() (Node, error) {
 	n := VariableNode{
 		unescap: p.curr.Unescape(),
+		special: p.curr.Special(),
 	}
 	p.next()
 	key, err := p.parseKey()

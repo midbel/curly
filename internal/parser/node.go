@@ -66,7 +66,7 @@ type CommentNode struct {
 	str string
 }
 
-func (c *CommentNode) Execute(w io.StringWriter, _ Nodeset, _ *state.State) error {
+func (c *CommentNode) Execute(_ io.StringWriter, _ Nodeset, _ *state.State) error {
 	return nil
 }
 
@@ -170,9 +170,19 @@ func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) er
 	return err
 }
 
+type AssignmentNode struct {
+	name string
+	key  Key
+}
+
+func (a *AssignmentNode) Execute(_ io.StringWriter, _ Nodeset, data *state.State) error {
+	return nil
+}
+
 type VariableNode struct {
 	key     Key
 	unescap bool
+	special bool
 }
 
 func (v *VariableNode) Execute(w io.StringWriter, _ Nodeset, data *state.State) error {

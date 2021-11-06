@@ -27,4 +27,12 @@ hello {{ world }} - hello {{world}}
 
 {{! comment}}
 
+// special variable are used with a dollar sign
+{{$ loop }}
+// environment variable (os)
+// TBD
+
+// variable assignment can be done via a colon
+{{: var value }}
+
 {{= <% %> =}}

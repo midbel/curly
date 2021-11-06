@@ -38,6 +38,15 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		}
 		fmt.Fprint(w, prefix)
 		fmt.Fprintln(w, "]")
+	case *AssignmentNode:
+		fmt.Fprint(w, "assignment(name: ")
+		fmt.Fprint(w, n.name)
+		if n.key.name != "" {
+			fmt.Fprint(w, ", key: ")
+			fmt.Fprint(w, n.key.name)
+			printFilters(w, n.key.filters)
+		}
+		fmt.Fprintln(w, ")")
 	case *ExecNode:
 		fmt.Fprint(w, "exec(name: ")
 		fmt.Fprint(w, n.name)

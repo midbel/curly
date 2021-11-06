@@ -34,6 +34,8 @@ const (
 	dash       = '-'
 	lparen     = '('
 	rparen     = ')'
+	dollar     = '$'
+	colon      = ':'
 )
 
 type Scanner struct {
@@ -302,6 +304,10 @@ func (s *Scanner) scanDelim(t *token.Token, accept func() bool) {
 func (s *Scanner) scanType(t *token.Token) {
 	s.scan = s.scanIdent
 	switch s.char {
+	case colon:
+		t.Type = token.Assignment
+	case dollar:
+		t.Type = token.SpecialVar
 	case pound:
 		t.Type = token.Block
 	case caret:
