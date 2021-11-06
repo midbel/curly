@@ -40,12 +40,9 @@ func isString(value reflect.Value) error {
 }
 
 func isNumeric(value reflect.Value) error {
-	switch value.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-	case reflect.Float32, reflect.Float64:
-	default:
-		return fmt.Errorf("%s can not be used as a number", value)
+	k := value.Kind()
+	if isInt(k) || isUint(k) || isFloat(k) {
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s can not be used as a number", value)
 }

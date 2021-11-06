@@ -41,7 +41,25 @@ func testLen(t *testing.T) {
 }
 
 func testMath(t *testing.T) {
+	var x, y int
+	ret, err := filters.Increment(getValue(x))
+	checkInt(t, ret, err, 1)
 
+	ret, err = filters.Decrement(ret)
+	checkInt(t, ret, err, x)
+
+	ret, err = filters.Mul(getValue(x), getValue(x))
+	checkInt(t, ret, err, x)
+
+	x, y = 10, 2
+	ret, err = filters.Div(getValue(x), getValue(y))
+	checkInt(t, ret, err, 5)
+	ret, err = filters.Mod(getValue(x), getValue(y))
+	checkInt(t, ret, err, 0)
+
+	x = 2
+	ret, err = filters.Pow(getValue(x), getValue(y))
+	checkInt(t, ret, err, 4)
 }
 
 func testCmp(t *testing.T) {
@@ -91,6 +109,17 @@ func checkStringArray(t *testing.T, val reflect.Value, err error, want []string)
 	}
 	for i := 0; i < val.Len(); i++ {
 		checkString(t, val.Index(i), nil, want[i])
+	}
+}
+
+func checkInt(t *testing.T, val reflect.Value, err error, want int) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error! got %s", err)
+		return
+	}
+	if got := getIntValue(val); got != want {
+		t.Errorf("result mismatched! want %d, got %d", want, got)
 	}
 }
 
