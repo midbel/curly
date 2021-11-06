@@ -60,6 +60,12 @@ func testMath(t *testing.T) {
 	x = 2
 	ret, err = filters.Pow(getValue(x), getValue(y))
 	checkInt(t, ret, err, 4)
+
+	arr := []float64{1, 7, 9, -9, 10}
+	ret, err = filters.Min(toArrayValues(arr)...)
+	checkFloat(t, ret, err, -9)
+	ret, err = filters.Max(toArrayValues(arr)...)
+	checkFloat(t, ret, err, 10)
 }
 
 func testCmp(t *testing.T) {
@@ -123,6 +129,17 @@ func checkInt(t *testing.T, val reflect.Value, err error, want int) {
 	}
 }
 
+func checkFloat(t *testing.T, val reflect.Value, err error, want float64) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error! got %s", err)
+		return
+	}
+	if got := getFloatValue(val); got != want {
+		t.Errorf("result mismatched! want %f, got %f", want, got)
+	}
+}
+
 func checkString(t *testing.T, val reflect.Value, err error, want string) {
 	t.Helper()
 	if err != nil {
@@ -138,8 +155,20 @@ func getValue(v interface{}) reflect.Value {
 	return reflect.ValueOf(v)
 }
 
+func toArrayValues(arr []float64) []reflect.Value {
+	var vs []reflect.Value
+	for i := range arr {
+		vs = append(vs, getValue(arr[i]))
+	}
+	return vs
+}
+
 func getIntValue(v reflect.Value) int {
 	return int(v.Int())
+}
+
+func getFloatValue(v reflect.Value) float64 {
+	return v.Float()
 }
 
 func getStringValue(v reflect.Value) string {

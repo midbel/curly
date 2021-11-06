@@ -91,11 +91,41 @@ func Pow(fst, lst reflect.Value) (reflect.Value, error) {
 }
 
 func Min(list ...reflect.Value) (reflect.Value, error) {
-	return zero, nil
+	var (
+		min  float64
+		curr float64
+		kind reflect.Kind
+	)
+	for i := range list {
+		curr, kind = toFloat(list[i])
+		if kind == reflect.Invalid {
+			return zero, fmt.Errorf("%s: invalid value", list[i])
+		}
+		if i == 0 || curr < min {
+			min, kind = curr, list[i].Kind()
+			continue
+		}
+	}
+	return toValue(min, kind, kind), nil
 }
 
 func Max(list ...reflect.Value) (reflect.Value, error) {
-	return zero, nil
+	var (
+		max  float64
+		curr float64
+		kind reflect.Kind
+	)
+	for i := range list {
+		curr, kind = toFloat(list[i])
+		if kind == reflect.Invalid {
+			return zero, fmt.Errorf("%s: invalid value", list[i])
+		}
+		if i == 0 || curr > max {
+			max, kind = curr, list[i].Kind()
+			continue
+		}
+	}
+	return toValue(max, kind, kind), nil
 }
 
 func Increment(fst reflect.Value) (reflect.Value, error) {
@@ -109,13 +139,20 @@ func Decrement(fst reflect.Value) (reflect.Value, error) {
 }
 
 func toFloat(v reflect.Value) (float64, reflect.Kind) {
-	if k := v.Kind(); isFloat(k) {
-		return v.Float(), reflect.Float64
-	} else if isInt(k) {
-		return float64(v.Int()), reflect.Int
-	} else {
-		return float64(v.Uint()), reflect.Uint
+	var (
+		val  float64
+		kind = reflect.Invalid
+	)
+	switch k := v.Kind(); {
+	default:
+	case isFloat(k):
+		val, kind = v.Float(), reflect.Float64
+	case isInt(k):
+		val, kind = float64(v.Int()), reflect.Int
+	case isUint(k):
+		val, kind = float64(v.Uint()), reflect.Uint
 	}
+	return val, kind
 }
 
 func doMath(fst, lst reflect.Value, do func(float64, float64) float64) (reflect.Value, error) {
