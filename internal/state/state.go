@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 )
 
@@ -11,11 +12,11 @@ var (
 )
 
 const (
-	keyLoop     = "loop"
-	keyLoop0    = "loop0"
+	KeyLoop     = "loop"
+	KeyLoop0    = "loop0"
 	KeyRevLoop  = "revloop"
 	KeyRevLoop0 = "revloop0"
-	keyLength   = "length"
+	KeyLength   = "length"
 )
 
 type FuncMap map[string]interface{}
@@ -32,28 +33,40 @@ type loopState struct {
 	length int
 }
 
+func Loop(i, n int, parent State) State {
+	return &loopState{
+		State: parent,
+		loop: i,
+		length: n,
+	}
+}
+
 func (s *loopState) Resolve(name string) (reflect.Value, error) {
+	var value reflect.Value
 	switch name {
-	case keyLength:
-		return reflect.ValueOf(s.length)
-	case keyLoop:
-		return reflect.ValueOf(s.loop + 1)
-	case keyLoop0:
-		return reflect.ValueOf(s.loop)
-	case keyRevLoop:
-	case keyRevLoop0:
+	case KeyLength:
+		value = reflect.ValueOf(s.length)
+	case KeyLoop:
+		value = reflect.ValueOf(s.loop + 1)
+	case KeyLoop0:
+		value = reflect.ValueOf(s.loop)
+	case KeyRevLoop:
+		value = reflect.ValueOf(s.length - s.loop)
+	case KeyRevLoop0:
+		value = reflect.ValueOf((s.length - s.loop) - 1)
 	default:
 		return s.State.Resolve(name)
 	}
+	return value, nil
 }
 
 func (s *loopState) Define(name string, value reflect.Value) error {
 	switch name {
-	case keyLength:
-	case keyLoop:
-	case keyLoop0:
-	case keyRevLoop:
-	case keyRevLoop0:
+	case KeyLength:
+	case KeyLoop:
+	case KeyLoop0:
+	case KeyRevLoop:
+	case KeyRevLoop0:
 		return s.State.Define(name, value)
 	}
 	return fmt.Errorf("%s can not be defined", name)

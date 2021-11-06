@@ -35,6 +35,12 @@ var nodecases = []nodeCase{
 		Want:  "FOOBAR",
 		Ok:    true,
 	},
+	{
+		Name:  "loop-index",
+		Input: `{{# list }}{{# loop0}} | {{/loop0}}{{loop}} - {{loop0}} - {{revloop}}{{/ list}}`,
+		Want:  "1 - 0 - 3 | 2 - 1 - 2 | 3 - 2 - 1",
+		Ok:    true,
+	},
 }
 
 func TestNode(t *testing.T) {
@@ -44,9 +50,11 @@ func TestNode(t *testing.T) {
 			"upper": strings.ToUpper,
 		}
 		ctx = struct {
-			Name string `curly:"name"`
+			Name string   `curly:"name"`
+			List []string `curly:"list"`
 		}{
 			Name: "foobar",
+			List: []string{"foo", "bar", "foo"},
 		}
 		state = state.EmptyState(ctx, filters)
 	)

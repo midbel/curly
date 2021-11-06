@@ -165,7 +165,8 @@ func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data state.State) err
 		err = b.nodes.Execute(w, ns, state.EnclosedState(val, data, nil))
 	case reflect.Array, reflect.Slice:
 		for i := 0; i < val.Len(); i++ {
-			err = b.nodes.Execute(w, ns, state.EnclosedState(val.Index(i), data, nil))
+			s := state.Loop(i, val.Len(), state.EnclosedState(val.Index(i), data, nil))
+			err = b.nodes.Execute(w, ns, s)
 			if err != nil {
 				return nil
 			}
