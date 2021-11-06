@@ -12,7 +12,7 @@ func ExampleTemplate_Define() {
 	const demo = `
 {{< list }}
 {{- # character -}}
-  - {{ name | title }}{{#role}}: {{role}}{{/role}}
+  {{loop}}/{{length}}: {{ name | title }}{{#role}}: {{role}}{{/role}}
 {{/ character -}}
 {{/ list }}
 
@@ -68,9 +68,9 @@ func ExampleTemplate_Define() {
 
 	// Output:
 	// [[star wars: a new hope]]
-	//   - Luke Skywalker: hero
-	//   - Leia Organa: hero
-	//   - Anakin Skywalker
+	//   1/3: Luke Skywalker: hero
+	//   2/3: Leia Organa: hero
+	//   3/3: Anakin Skywalker
 	// [[star wars: the empire strikes back]]
 }
 
