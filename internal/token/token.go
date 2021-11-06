@@ -20,8 +20,6 @@ const (
 	Inverted
 	EscapeVar
 	UnescapeVar
-	EnvVar
-	SpecialVar
 	Pipe
 	Assignment
 	Partial
@@ -96,10 +94,6 @@ func (t *Token) Unescape() bool {
 	return t.Type == UnescapeVar
 }
 
-func (t *Token) Special() bool {
-	return t.Type == SpecialVar
-}
-
 func (t Token) String() string {
 	var prefix string
 	switch t.Type {
@@ -133,10 +127,6 @@ func (t Token) String() string {
 		return "<partial>"
 	case EscapeVar, UnescapeVar:
 		return "<variable>"
-	case SpecialVar:
-		return "<special-variable>"
-	case EnvVar:
-		return "<env-variable>"
 	case Delim:
 		return "<delimiter>"
 	case End:

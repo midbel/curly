@@ -87,8 +87,6 @@ func NewParser(r io.Reader) (*Parser, error) {
 		token.Exec:        p.parseExec,
 		token.EscapeVar:   p.parseVariable,
 		token.UnescapeVar: p.parseVariable,
-		token.SpecialVar:  p.parseVariable,
-		token.EnvVar:      p.parseVariable,
 		token.Comment:     p.parseComment,
 		token.Partial:     p.parsePartial,
 		token.Delim:       p.parseDelim,
@@ -134,7 +132,7 @@ func (p *Parser) parseAssignment() (Node, error) {
 		return nil, p.unexpectedToken()
 	}
 	a := AssignmentNode{
-		name: p.curr.Literal,
+		ident: p.curr.Literal,
 	}
 	p.next()
 
@@ -240,7 +238,7 @@ func (p *Parser) parseBlock() (Node, error) {
 		return nil, err
 	}
 	b.key = key
-	ns, err := p.parseBody(b.key.name)
+	ns, err := p.parseBody(b.key.Ident())
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +304,6 @@ func (p *Parser) parseComment() (Node, error) {
 func (p *Parser) parseVariable() (Node, error) {
 	n := VariableNode{
 		unescap: p.curr.Unescape(),
-		special: p.curr.Special(),
 	}
 	p.next()
 	key, err := p.parseKey()
@@ -318,11 +315,40 @@ func (p *Parser) parseVariable() (Node, error) {
 }
 
 func (p *Parser) parseKey() (Key, error) {
-	var k Key
-	if p.curr.Type != token.Ident {
-		return k, p.unexpectedToken()
+	switch {
+	case p.curr.Type == token.Ident:
+		return p.parseIdentKey()
+	case p.curr.IsValue():
+		return p.parseValueKey()
+	default:
+		return nil, p.unexpectedToken()
 	}
-	k.name = p.curr.Literal
+}
+
+func (p *Parser) parseValueKey() (Key, error) {
+	k := ValueKey{
+		literal: p.curr.Literal,
+		kind:    p.curr.Type,
+	}
+	for {
+		if p.peek.Type != token.Pipe {
+			break
+		}
+		p.next()
+		p.next()
+		f, err := p.parseFilter()
+		if err != nil {
+			return k, err
+		}
+		k.filters = append(k.filters, f)
+	}
+	return k, p.ensureClose()
+}
+
+func (p *Parser) parseIdentKey() (Key, error) {
+	k := IdentKey{
+		name: p.curr.Literal,
+	}
 	for {
 		if p.peek.Type != token.Pipe {
 			break

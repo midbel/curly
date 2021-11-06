@@ -306,8 +306,6 @@ func (s *Scanner) scanType(t *token.Token) {
 	switch s.char {
 	case colon:
 		t.Type = token.Assignment
-	case dollar:
-		t.Type = token.SpecialVar
 	case pound:
 		t.Type = token.Block
 	case caret:
