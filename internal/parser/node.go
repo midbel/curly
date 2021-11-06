@@ -11,13 +11,19 @@ import (
 	"github.com/midbel/curly/internal/token"
 )
 
+type Key interface {
+	Ident() string
+	resolve(state.State) (reflect.Value, error)
+	isZero() bool
+}
+
 type Node interface {
-	Execute(io.StringWriter, Nodeset, *state.State) error
+	Execute(io.StringWriter, Nodeset, state.State) error
 }
 
 type NodeList []Node
 
-func (n NodeList) Execute(w io.StringWriter, ns Nodeset, s *state.State) error {
+func (n NodeList) Execute(w io.StringWriter, ns Nodeset, s state.State) error {
 	for i := range n {
 		if err := n[i].Execute(w, ns, s); err != nil {
 			return err
@@ -51,7 +57,7 @@ type RootNode struct {
 	Named Nodeset
 }
 
-func (r *RootNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+func (r *RootNode) Execute(w io.StringWriter, ns Nodeset, data state.State) error {
 	return r.Nodes.Execute(w, ns, data)
 }
 
@@ -66,7 +72,7 @@ type CommentNode struct {
 	str string
 }
 
-func (c *CommentNode) Execute(_ io.StringWriter, _ Nodeset, _ *state.State) error {
+func (c *CommentNode) Execute(_ io.StringWriter, _ Nodeset, _ state.State) error {
 	return nil
 }
 
@@ -75,7 +81,7 @@ type DefineNode struct {
 	nodes NodeList
 }
 
-func (d *DefineNode) Execute(w io.StringWriter, ns Nodeset, s *state.State) error {
+func (d *DefineNode) Execute(w io.StringWriter, ns Nodeset, s state.State) error {
 	return d.nodes.Execute(w, ns, s)
 }
 
@@ -83,7 +89,7 @@ type PartialNode struct {
 	file string
 }
 
-func (p *PartialNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+func (p *PartialNode) Execute(w io.StringWriter, ns Nodeset, data state.State) error {
 	n, err := ParseFile(p.file)
 	if err != nil {
 		return err
@@ -99,7 +105,7 @@ type ExecNode struct {
 	key  Key
 }
 
-func (e *ExecNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+func (e *ExecNode) Execute(w io.StringWriter, ns Nodeset, data state.State) error {
 	n := ns.Resolve(e.name)
 	if n == nil {
 		return fmt.Errorf("node %s not found", e.name)
@@ -119,7 +125,7 @@ type SectionNode struct {
 	nodes NodeList
 }
 
-func (s *SectionNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+func (s *SectionNode) Execute(w io.StringWriter, ns Nodeset, data state.State) error {
 	n := ns.Resolve(s.name)
 	if n != nil {
 		return n.Execute(w, ns, data)
@@ -131,7 +137,7 @@ type LiteralNode struct {
 	str string
 }
 
-func (i *LiteralNode) Execute(w io.StringWriter, _ Nodeset, _ *state.State) error {
+func (i *LiteralNode) Execute(w io.StringWriter, _ Nodeset, _ state.State) error {
 	w.WriteString(i.str)
 	return nil
 }
@@ -142,7 +148,7 @@ type BlockNode struct {
 	nodes    NodeList
 }
 
-func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) error {
+func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data state.State) error {
 	val, err := b.key.resolve(data)
 	if err != nil {
 		return nil
@@ -171,21 +177,25 @@ func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data *state.State) er
 }
 
 type AssignmentNode struct {
-	name string
-	key  Key
+	ident string
+	key   Key
 }
 
-func (a *AssignmentNode) Execute(_ io.StringWriter, _ Nodeset, data *state.State) error {
+func (a *AssignmentNode) Execute(_ io.StringWriter, _ Nodeset, data state.State) error {
+	val, err := a.key.resolve(data)
+	if err != nil {
+		return err
+	}
+	data.Define(a.ident, val)
 	return nil
 }
 
 type VariableNode struct {
 	key     Key
 	unescap bool
-	special bool
 }
 
-func (v *VariableNode) Execute(w io.StringWriter, _ Nodeset, data *state.State) error {
+func (v *VariableNode) Execute(w io.StringWriter, _ Nodeset, data state.State) error {
 	val, err := v.key.resolve(data)
 	if err != nil {
 		return nil
@@ -202,7 +212,7 @@ type Argument struct {
 	kind    rune
 }
 
-func (a Argument) get(data *state.State) reflect.Value {
+func (a Argument) get(data state.State) reflect.Value {
 	var val reflect.Value
 	switch a.kind {
 	case token.Integer:
@@ -236,7 +246,7 @@ var (
 	reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
 )
 
-func (f Filter) apply(data *state.State, value reflect.Value) (reflect.Value, error) {
+func (f Filter) apply(data state.State, value reflect.Value) (reflect.Value, error) {
 	fn, err := data.Lookup(f.name)
 	if err != nil {
 		return fn, err
@@ -277,7 +287,7 @@ func (f Filter) apply(data *state.State, value reflect.Value) (reflect.Value, er
 	return rs[0], err
 }
 
-func (f Filter) arguments(data *state.State) []reflect.Value {
+func (f Filter) arguments(data state.State) []reflect.Value {
 	as := make([]reflect.Value, len(f.args))
 	for i := range f.args {
 		as[i] = f.args[i].get(data)
@@ -285,16 +295,65 @@ func (f Filter) arguments(data *state.State) []reflect.Value {
 	return as
 }
 
-type Key struct {
+type ValueKey struct {
+	literal string
+	kind    rune
+	filters []Filter
+}
+
+func (k ValueKey) Ident() string {
+	return k.literal
+}
+
+func (k ValueKey) isZero() bool {
+	return k.literal == ""
+}
+
+func (k ValueKey) resolve(data state.State) (reflect.Value, error) {
+	var (
+		raw interface{}
+		err error
+	)
+	switch k.kind {
+	case token.Integer:
+		raw, err = strconv.ParseInt(k.literal, 0, 64)
+	case token.Float:
+		raw, err = strconv.ParseFloat(k.literal, 64)
+	case token.Literal:
+		raw = k.literal
+	case token.Bool:
+		raw, err = strconv.ParseBool(k.literal)
+	default:
+		err = fmt.Errorf("unsupported type")
+	}
+	if err != nil {
+		return state.Invalid, err
+	}
+	value := reflect.ValueOf(raw)
+	for i := range k.filters {
+		value, err = k.filters[i].apply(data, value)
+		if err != nil {
+			value = state.Invalid
+			break
+		}
+	}
+	return value, err
+}
+
+type IdentKey struct {
 	name    string
 	filters []Filter
 }
 
-func (k Key) isZero() bool {
+func (k IdentKey) Ident() string {
+	return k.name
+}
+
+func (k IdentKey) isZero() bool {
 	return k.name == ""
 }
 
-func (k Key) resolve(data *state.State) (reflect.Value, error) {
+func (k IdentKey) resolve(data state.State) (reflect.Value, error) {
 	value, err := data.Resolve(k.name)
 	if err != nil {
 		return state.Invalid, err

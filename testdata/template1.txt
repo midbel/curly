@@ -33,6 +33,6 @@ hello {{ world }} - hello {{world}}
 // TBD
 
 // variable assignment can be done via a colon
-{{: var value }}
+{{: var "value" | lower }}
 
 {{= <% %> =}}

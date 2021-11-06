@@ -40,20 +40,20 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		fmt.Fprintln(w, "]")
 	case *AssignmentNode:
 		fmt.Fprint(w, "assignment(name: ")
-		fmt.Fprint(w, n.name)
-		if n.key.name != "" {
+		fmt.Fprint(w, n.ident)
+		if key, filters := getKeyFields(n.key); key != "" {
 			fmt.Fprint(w, ", key: ")
-			fmt.Fprint(w, n.key.name)
-			printFilters(w, n.key.filters)
+			fmt.Fprint(w, key)
+			printFilters(w, filters)
 		}
 		fmt.Fprintln(w, ")")
 	case *ExecNode:
 		fmt.Fprint(w, "exec(name: ")
 		fmt.Fprint(w, n.name)
-		if n.key.name != "" {
+		if key, filters := getKeyFields(n.key); key != "" {
 			fmt.Fprint(w, ", key: ")
-			fmt.Fprint(w, n.key.name)
-			printFilters(w, n.key.filters)
+			fmt.Fprint(w, key)
+			printFilters(w, filters)
 		}
 		fmt.Fprintln(w, ")")
 	case *DefineNode:
@@ -69,9 +69,10 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		fmt.Fprint(w, n.name)
 		fmt.Fprintln(w, ")")
 	case *BlockNode:
+		key, filters := getKeyFields(n.key)
 		fmt.Fprint(w, "block(key: ")
-		fmt.Fprint(w, n.key.name)
-		printFilters(w, n.key.filters)
+		fmt.Fprint(w, key)
+		printFilters(w, filters)
 		fmt.Fprint(w, ") [")
 		fmt.Fprintln(w)
 		for i := range n.nodes {
@@ -80,11 +81,12 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		fmt.Fprint(w, prefix)
 		fmt.Fprintln(w, "]")
 	case *VariableNode:
+		key, filters := getKeyFields(n.key)
 		fmt.Fprint(w, "variable(key: ")
-		fmt.Fprint(w, n.key.name)
+		fmt.Fprint(w, key)
 		fmt.Fprint(w, ", unescape: ")
 		fmt.Fprint(w, n.unescap)
-		printFilters(w, n.key.filters)
+		printFilters(w, filters)
 		fmt.Fprint(w, ")")
 		fmt.Fprintln(w)
 	case *CommentNode:
@@ -103,6 +105,17 @@ func debugWithLevel(w io.Writer, n Node, level int) {
 		}
 		fmt.Fprint(w, ")")
 		fmt.Fprintln(w)
+	}
+}
+
+func getKeyFields(k Key) (string, []Filter) {
+	switch k := k.(type) {
+	case IdentKey:
+		return k.name, k.filters
+	case ValueKey:
+		return k.literal, k.filters
+	default:
+		return "", nil
 	}
 }
 
