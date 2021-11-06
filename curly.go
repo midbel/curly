@@ -112,12 +112,26 @@ func (t *Template) Funcs(fm FuncMap) *Template {
 }
 
 func (t *Template) ParseFiles(files ...string) (*Template, error) {
+	if len(files) == 0 {
+		return t, nil
+	}
+	root, ok := t.root.(*parser.RootNode)
+	if !ok {
+		root := parser.RootNode{
+			Named: make(parser.Nodeset),
+		}
+		t.root = &root
+	}
 	for _, f := range files {
 		tpl, err := ParseFile(f)
 		if err != nil {
 			return nil, err
 		}
-		_ = tpl
+		base := filepath.Base(f)
+		if other, ok := tpl.root.(*parser.RootNode); ok {
+			root.Named.Merge(other.Named)
+		}
+		t.templates[base] = tpl
 	}
 	return t, nil
 }
@@ -142,4 +156,16 @@ func (t *Template) ExecuteTemplate(name string, w io.Writer, data interface{}) e
 		return fmt.Errorf("%s: template not defined", name)
 	}
 	return tpl.Execute(w, data)
+}
+
+func (t *Template) Name() string {
+	return t.name
+}
+
+func (t *Template) DefinedTemplates() []string {
+	var str []string
+	for k := range t.templates {
+		str = append(str, k)
+	}
+	return str
 }

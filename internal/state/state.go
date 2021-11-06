@@ -35,8 +35,8 @@ type loopState struct {
 
 func Loop(i, n int, parent State) State {
 	return &loopState{
-		State: parent,
-		loop: i,
+		State:  parent,
+		loop:   i,
 		length: n,
 	}
 }

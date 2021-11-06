@@ -3,6 +3,7 @@ package curly_test
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/midbel/curly"
@@ -219,4 +220,142 @@ contact: {{email}}
 	// - toml (version: 0.1.1)
 	//
 	// contact: midbel@foobar.org
+}
+
+func ExampleTemplate_ParseFiles() {
+	type Change struct {
+		Date string
+		Desc string
+	}
+	type Repo struct {
+		Name    string
+		Version string
+		Changes []Change
+	}
+	type Dev struct {
+		Name  string
+		Repos []Repo
+	}
+	const demo = `
+{{# devs -}}
+{{Name}}
+{{@ repository Repos -}}
+{{/ devs }}
+	`
+	c := struct {
+		Dev []Dev `curly:"devs"`
+	}{
+		Dev: []Dev{
+			{
+				Name: "rustine",
+				Repos: []Repo{
+					{
+						Name:    "data",
+						Version: "1.0.0",
+						Changes: []Change{
+							{
+								Date: "2021-11-06 19:22:00",
+								Desc: "first major release",
+							},
+						},
+					},
+				},
+			},
+			{
+				Name: "midbel",
+				Repos: []Repo{
+					{
+						Name:    "fig",
+						Version: "0.0.4",
+						Changes: []Change{
+							{
+								Date: "2021-11-06 19:22:00",
+								Desc: "restart from scratch",
+							},
+							{
+								Date: "2021-06-06 15:45:00",
+								Desc: "initial commit",
+							},
+						},
+					},
+					{
+						Name:    "curly",
+						Version: "0.1.0",
+						Changes: []Change{
+							{
+								Date: "2021-07-18 11:00:00",
+								Desc: "initial commit",
+							},
+							{
+								Date: "2021-11-07 15:45:00",
+								Desc: "test parse files",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	files := []struct {
+		File    string
+		Content string
+	}{
+		{
+			File: "repo.txt",
+			Content: `
+{{< repository -}}
+{{#Repos -}}
+- {{Name}} ({{Version}})
+{{@ changes Changes -}}
+{{/Repos -}}
+{{/ repository -}}`,
+		},
+		{
+			File: "change.txt",
+			Content: `
+{{< changes -}}
+{{# Changes -}}
+  - {{Date}}: {{Desc}}
+{{/ Changes -}}
+{{/ changes -}}`,
+		},
+	}
+	dir, err := os.MkdirTemp("", "")
+	if err != nil {
+		fmt.Println("mkdir tmp:", err)
+		return
+	}
+	defer os.RemoveAll(dir)
+
+	var list []string
+	for _, f := range files {
+		f.File = filepath.Join(dir, f.File)
+		buf := strings.TrimSpace(f.Content)
+		if err := os.WriteFile(f.File, []byte(buf), 0644); err != nil {
+			fmt.Println("writing file error:", err)
+			return
+		}
+		list = append(list, f.File)
+	}
+	t, err := curly.New("demo").Funcs(curly.Filters).Parse(strings.NewReader(demo))
+	if err != nil {
+		fmt.Println("error parsing template (1):", err)
+		return
+	}
+	if t, err = t.ParseFiles(list...); err != nil {
+		fmt.Println("error parsing template (2):", err)
+		return
+	}
+	t.Execute(os.Stdout, c)
+	// Output:
+	// rustine
+	// - data (1.0.0)
+	//   - 2021-11-06 19:22:00: first major release
+	// midbel
+	// - fig (0.0.4)
+	//   - 2021-11-06 19:22:00: restart from scratch
+	//   - 2021-06-06 15:45:00: initial commit
+	// - curly (0.1.0)
+	//   - 2021-07-18 11:00:00: initial commit
+	//   - 2021-11-07 15:45:00: test parse files
 }
