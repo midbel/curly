@@ -28,6 +28,13 @@ func isArray(value reflect.Value) error {
 	return fmt.Errorf("%s can not be used as an array", value)
 }
 
+func isStruct(value reflect.Value) error {
+	if value.Kind() == reflect.Struct {
+		return nil
+	}
+	return fmt.Errorf("%s can not be used as a struct", value)
+}
+
 func isMap(value reflect.Value) error {
 	if value.Kind() == reflect.Map {
 		return nil

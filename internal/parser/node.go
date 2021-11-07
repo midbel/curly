@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -9,6 +10,11 @@ import (
 
 	"github.com/midbel/curly/internal/state"
 	"github.com/midbel/curly/internal/token"
+)
+
+var (
+	ErrBreak    = errors.New("break")
+	ErrContinue = errors.New("continue")
 )
 
 type Key interface {
@@ -175,6 +181,18 @@ func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data state.State) err
 		err = b.nodes.Execute(w, ns, data)
 	}
 	return err
+}
+
+type BreakNode struct{}
+
+func (_ *BreakNode) Execute(_ io.StringWriter, _ Nodeset, _ state.State) error {
+	return ErrBreak
+}
+
+type ContinueNode struct{}
+
+func (_ *ContinueNode) Execute(_ io.StringWriter, _ Nodeset, _ state.State) error {
+	return ErrContinue
 }
 
 type AssignmentNode struct {

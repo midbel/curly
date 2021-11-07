@@ -5,6 +5,29 @@ import (
 	"reflect"
 )
 
+func Get(value reflect.Value, field string) (reflect.Value, error) {
+	switch {
+	case accept(isMap(value)):
+		return getMap(value, field)
+	case accept(isArray(value)):
+		return getStruct(value, field)
+	default:
+		return zero, ErrIncompatible
+	}
+}
+
+func getStruct(value reflect.Value, field string) (reflect.Value, error) {
+	return value.GetFieldByName(field), nil
+}
+
+func getMap(value reflect.Value, field string) (reflect.Value, error) {
+	val := reflect.ValueOf(field)
+	if !val.Type().AssignableTo(value.Type().Key()) {
+		return zero, ErrIncompatible
+	}
+	return value.MapIndex(val), nil
+}
+
 func Keys(value reflect.Value) (reflect.Value, error) {
 	if err := isMap(value); err != nil {
 		return zero, err
