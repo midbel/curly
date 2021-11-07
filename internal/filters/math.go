@@ -12,6 +12,15 @@ func Rand() (reflect.Value, error) {
 	return reflect.ValueOf(n), nil
 }
 
+func Rev(fst reflect.Value) (reflect.Value, error) {
+	if err := isNumeric(fst); err != nil {
+		return zero, err
+	}
+	return doMath(fst, fst, func(v1, _ float64) float64 {
+		return -v1
+	})
+}
+
 func Add(fst, lst reflect.Value) (reflect.Value, error) {
 	if err := isNumeric(fst); err != nil {
 		return zero, err
@@ -175,16 +184,4 @@ func toValue(v float64, k1, k2 reflect.Kind) reflect.Value {
 		return reflect.ValueOf(uint(v))
 	}
 	return reflect.ValueOf(int(v))
-}
-
-func isInt(k reflect.Kind) bool {
-	return k == reflect.Int || k == reflect.Int8 || k == reflect.Int16 || k == reflect.Int32 || k == reflect.Int64
-}
-
-func isUint(k reflect.Kind) bool {
-	return k == reflect.Uint || k == reflect.Uint8 || k == reflect.Uint16 || k == reflect.Uint32 || k == reflect.Uint64
-}
-
-func isFloat(k reflect.Kind) bool {
-	return k == reflect.Float32 || k == reflect.Float64
 }

@@ -40,6 +40,7 @@ var Filters = FuncMap{
 	"sha256sum": filters.SumSHA256,
 	"sha512sum": filters.SumSHA512,
 	// math filters
+	"rev":  filters.Rev,
 	"add":  filters.Add,
 	"sub":  filters.Sub,
 	"mul":  filters.Mul,

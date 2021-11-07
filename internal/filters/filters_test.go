@@ -69,7 +69,50 @@ func testMath(t *testing.T) {
 }
 
 func testCmp(t *testing.T) {
+	ret, err := filters.Equal(getValue("foobar"), getValue("foobar"))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Equal(getValue(true), getValue(true))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Equal(getValue(true), getValue(false))
+	checkBool(t, ret, err, false)
+	ret, err = filters.NotEqual(getValue(true), getValue(false))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Equal(getValue("foobar"), getValue("foo"))
+	checkBool(t, ret, err, false)
+	ret, err = filters.Equal(getValue(100), getValue(100))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Equal(getValue(100.0), getValue(1.0))
+	checkBool(t, ret, err, false)
+	ret, err = filters.NotEqual(getValue("foobar"), getValue("foo"))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Equal(getValue(100), getValue(100))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Lesser(getValue(1), getValue(100))
+	checkBool(t, ret, err, true)
+	ret, err = filters.LesserEqual(getValue(1), getValue(100))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Equal(getValue(100.0), getValue(1.0))
+	checkBool(t, ret, err, false)
+	ret, err = filters.Greater(getValue(100.0), getValue(1.0))
+	checkBool(t, ret, err, true)
+	ret, err = filters.GreaterEqual(getValue(100.0), getValue(1.0))
+	checkBool(t, ret, err, true)
+	ret, err = filters.GreaterEqual(getValue(100.0), getValue(100.0))
+	checkBool(t, ret, err, true)
 
+	ret, err = filters.And(getValue(true), getValue(true))
+	checkBool(t, ret, err, true)
+	ret, err = filters.And(getValue(true), getValue(false))
+	checkBool(t, ret, err, false)
+	ret, err = filters.Or(getValue(true), getValue(false))
+	checkBool(t, ret, err, true)
+	ret, err = filters.Or(getValue(false), getValue(false))
+	checkBool(t, ret, err, false)
+
+	ret, err = filters.Not(getValue(true))
+	checkBool(t, ret, err, false)
+	ret, err = filters.Not(getValue(false))
+	checkBool(t, ret, err, true)
 }
 
 func testArray(t *testing.T) {
@@ -115,6 +158,17 @@ func checkStringArray(t *testing.T, val reflect.Value, err error, want []string)
 	}
 	for i := 0; i < val.Len(); i++ {
 		checkString(t, val.Index(i), nil, want[i])
+	}
+}
+
+func checkBool(t *testing.T, val reflect.Value, err error, want bool) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error! got %s", err)
+		return
+	}
+	if got := getBoolValue(val); got != want {
+		t.Errorf("result mismatched! want %t, got %t", want, got)
 	}
 }
 
@@ -169,6 +223,10 @@ func getIntValue(v reflect.Value) int {
 
 func getFloatValue(v reflect.Value) float64 {
 	return v.Float()
+}
+
+func getBoolValue(v reflect.Value) bool {
+	return v.Bool()
 }
 
 func getStringValue(v reflect.Value) string {
