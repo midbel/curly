@@ -3,14 +3,13 @@ hello {{world | lower}} - {{world | upper | len}}
 hello {{ text | split "_" | reverse | join "/" }}
 
 {{< define}}
-  // define a template that can be reused
-  // define template are never rendered except if they are called
+  // define defines a template inline that can be used by calling it directly
+  // or it will override block with the same name automatically
 {{/ define}}
 
 {{% block}}
-  // define a block that can be overwritten by a call
-  // if a template with the same name of the block is defined then it will
-  // be called and replaced the content of the content of the block
+  // block defines a template that will be used directly if no define template
+  // with the same name exists or its content will be replaced by a define template
 {{/block}}
 
 {{@ call1 state}} // call a template define elsewhere (inline or in another file)

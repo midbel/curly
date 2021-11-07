@@ -17,6 +17,7 @@ const (
 	KeyRevLoop  = "revloop"
 	KeyRevLoop0 = "revloop0"
 	KeyLength   = "length"
+	KeyContext  = "ctx"
 )
 
 type FuncMap map[string]interface{}
@@ -107,11 +108,17 @@ func (s *stdState) Lookup(name string) (reflect.Value, error) {
 }
 
 func (s *stdState) Define(key string, value reflect.Value) error {
+	if key == KeyContext {
+		return fmt.Errorf("%s can not be defined", key)
+	}
 	s.locals[key] = value
 	return nil
 }
 
 func (s *stdState) Resolve(key string) (reflect.Value, error) {
+	if key == KeyContext {
+		return s.current, nil
+	}
 	v, err := s.find(key)
 	if err != nil {
 		if r, ok := s.locals[key]; ok {

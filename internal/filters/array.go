@@ -17,7 +17,7 @@ func Get(value reflect.Value, field string) (reflect.Value, error) {
 }
 
 func getStruct(value reflect.Value, field string) (reflect.Value, error) {
-	return value.GetFieldByName(field), nil
+	return value.FieldByName(field), nil
 }
 
 func getMap(value reflect.Value, field string) (reflect.Value, error) {

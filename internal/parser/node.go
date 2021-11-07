@@ -30,7 +30,13 @@ type Node interface {
 type NodeList []Node
 
 func (n NodeList) Execute(w io.StringWriter, ns Nodeset, s state.State) error {
+	if n == nil {
+		return nil
+	}
 	for i := range n {
+		if n[i] == nil {
+			return fmt.Errorf("nil node")
+		}
 		if err := n[i].Execute(w, ns, s); err != nil {
 			return err
 		}
@@ -155,6 +161,9 @@ type BlockNode struct {
 }
 
 func (b *BlockNode) Execute(w io.StringWriter, ns Nodeset, data state.State) error {
+	if b.key == nil {
+		return fmt.Errorf("no key defined")
+	}
 	val, err := b.key.resolve(data)
 	if err != nil {
 		return nil
@@ -436,6 +445,8 @@ func stringify(v reflect.Value, escape bool) (string, error) {
 		str = strconv.FormatUint(v.Uint(), 10)
 	case reflect.Float32, reflect.Float64:
 		str = strconv.FormatFloat(v.Float(), 'g', -1, 64)
+	case reflect.Invalid:
+		str = "<invalid>"
 	default:
 		err = fmt.Errorf("%s can not be stringify", v)
 	}
