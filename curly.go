@@ -28,7 +28,10 @@ var Filters = FuncMap{
 	"basename": filepath.Base,
 	"dirname":  filepath.Dir,
 	// "join": filepath.Join,
-	// array/slice filters
+	// array/slice/map filters
+	"index":   filters.Index,
+	"keys":    filters.Keys,
+	"values":  filters.Values,
 	"reverse": filters.Reverse,
 	"first":   filters.First,
 	"last":    filters.Last,

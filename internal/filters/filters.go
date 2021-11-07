@@ -22,12 +22,17 @@ func Len(value reflect.Value) (reflect.Value, error) {
 }
 
 func isArray(value reflect.Value) error {
-	switch value.Kind() {
-	case reflect.Slice, reflect.Array:
+	if k := value.Kind(); k == reflect.Slice || k == reflect.Array {
 		return nil
-	default:
-		return fmt.Errorf("%s can not be used as an array", value)
 	}
+	return fmt.Errorf("%s can not be used as an array", value)
+}
+
+func isMap(value reflect.Value) error {
+	if value.Kind() == reflect.Map {
+		return nil
+	}
+	return fmt.Errorf("%s can not be used as a map", value)
 }
 
 func isString(value reflect.Value) error {
@@ -62,4 +67,8 @@ func isUint(k reflect.Kind) bool {
 
 func isFloat(k reflect.Kind) bool {
 	return k == reflect.Float32 || k == reflect.Float64
+}
+
+func accept(err error) bool {
+	return err == nil
 }

@@ -35,9 +35,6 @@ func Not(fst reflect.Value) (reflect.Value, error) {
 }
 
 func Equal(fst, snd reflect.Value) (reflect.Value, error) {
-	accept := func(err error) bool {
-		return err == nil
-	}
 	var cmp bool
 	switch {
 	case accept(isNumeric(fst)) && accept(isNumeric(snd)):
@@ -63,9 +60,6 @@ func NotEqual(fst, snd reflect.Value) (reflect.Value, error) {
 }
 
 func Greater(fst, snd reflect.Value) (reflect.Value, error) {
-	accept := func(err error) bool {
-		return err == nil
-	}
 	var cmp bool
 	switch {
 	case accept(isNumeric(fst)) && accept(isNumeric(snd)):
@@ -93,9 +87,6 @@ func GreaterEqual(fst, snd reflect.Value) (reflect.Value, error) {
 }
 
 func Lesser(fst, snd reflect.Value) (reflect.Value, error) {
-	accept := func(err error) bool {
-		return err == nil
-	}
 	var cmp bool
 	switch {
 	case accept(isNumeric(fst)) && accept(isNumeric(snd)):

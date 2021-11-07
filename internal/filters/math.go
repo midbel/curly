@@ -164,6 +164,11 @@ func toFloat(v reflect.Value) (float64, reflect.Kind) {
 	return val, kind
 }
 
+func toInt(v reflect.Value) (int, reflect.Kind) {
+	x, k := toFloat(v)
+	return int(x), k
+}
+
 func doMath(fst, lst reflect.Value, do func(float64, float64) float64) (reflect.Value, error) {
 	var (
 		v1, k1 = toFloat(fst)

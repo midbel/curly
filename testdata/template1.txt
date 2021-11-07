@@ -23,14 +23,9 @@ hello {{ world }} - hello {{world}}
 {{/ block}}
 {{^ inverted }}rendered only when its context has a falsy value{{/ inverted}}
 
-{{! > partial }}
+{{> partial }}
 
 {{! comment}}
-
-// special variable are used with a dollar sign
-{{$ loop }}
-// environment variable (os)
-// TBD
 
 // variable assignment can be done via a colon
 {{: var "value" | lower }}

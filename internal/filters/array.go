@@ -5,6 +5,63 @@ import (
 	"reflect"
 )
 
+func Keys(value reflect.Value) (reflect.Value, error) {
+	if err := isMap(value); err != nil {
+		return zero, err
+	}
+	var (
+		vs = reflect.MakeSlice(value.Type().Key(), 0, value.Len())
+		it = value.MapRange()
+	)
+	for it.Next() {
+		vs = reflect.Append(vs, it.Key())
+	}
+	return vs, nil
+}
+
+func Values(value reflect.Value) (reflect.Value, error) {
+	if err := isMap(value); err != nil {
+		return zero, err
+	}
+	var (
+		vs = reflect.MakeSlice(value.Type().Elem(), 0, value.Len())
+		it = value.MapRange()
+	)
+	for it.Next() {
+		vs = reflect.Append(vs, it.Value())
+	}
+	return vs, nil
+}
+
+func Index(value, index reflect.Value) (reflect.Value, error) {
+	switch {
+	case accept(isMap(value)):
+		return indexMap(value, index)
+	case accept(isArray(value)):
+		return indexArray(value, index)
+	default:
+		return zero, ErrIncompatible
+	}
+}
+
+func indexArray(value, index reflect.Value) (reflect.Value, error) {
+	if err := isNumeric(index); err != nil {
+		return zero, err
+	}
+	i, _ := toInt(index)
+	if i < 0 || i >= value.Len() {
+		return zero, fmt.Errorf("index out of range")
+	}
+	return value.Index(i), nil
+}
+
+func indexMap(value, index reflect.Value) (reflect.Value, error) {
+	if !index.Type().AssignableTo(value.Type().Key()) {
+		return zero, ErrIncompatible
+	}
+	return value.MapIndex(index), nil
+}
+
 func First(value reflect.Value) (reflect.Value, error) {
 	ret, err := FirstN(value, 1)
 	if err != nil {
