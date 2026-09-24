@@ -114,9 +114,9 @@ func (w *Writer) writeLiteral(value any) error {
 	case float64:
 		w.ws.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 	case int64:
-		w.ws.WriteString(strconv.FormatInt(v, 64))
+		w.ws.WriteString(strconv.FormatInt(v, 10))
 	case int:
-		w.ws.WriteString(strconv.FormatInt(int64(v), 64))
+		w.ws.WriteString(strconv.FormatInt(int64(v), 10))
 	case string:
 		w.writeString(v)
 	default:
