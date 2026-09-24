@@ -12,7 +12,6 @@ type Writer struct {
 	ws *bufio.Writer
 
 	Indent  string
-	Pretty  bool
 	Compact bool
 
 	level int
@@ -115,7 +114,9 @@ func (w *Writer) writeLiteral(value any) error {
 	case float64:
 		w.ws.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 	case int64:
-		w.ws.WriteString(strconv.FormatFloat(float64(v), 'f', -1, 64))
+		w.ws.WriteString(strconv.FormatInt(v, 64))
+	case int:
+		w.ws.WriteString(strconv.FormatInt(int64(v), 64))
 	case string:
 		w.writeString(v)
 	default:

@@ -60,7 +60,7 @@ func (p *Parser) parse() (any, error) {
 	case Null:
 		return p.parseNull(), nil
 	default:
-		return nil, fmt.Errorf("syntax error")
+		return nil, errSyntax
 	}
 }
 
