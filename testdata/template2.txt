@@ -1,5 +1,0 @@
-my repositories:
-{{# repo }}
-  {{Name}} (version: {{Version}})
-{{/ repo }}
-contacts: {{ Email }}

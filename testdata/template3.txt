@@ -1,3 +1,0 @@
-hello {{& World }} - {{#truthy}}{{&name}}{{/truthy}}
-{{^Falsy}}nothing will be rendered {{& falsy}}{{/Falsy}}
->>{{! comment will not be rendered }}<<
