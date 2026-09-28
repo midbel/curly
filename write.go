@@ -144,7 +144,7 @@ func (w *Writer) writeQuote(value string) {
 	for _, r := range value {
 		switch r {
 		case '"', '\\':
-			w.writeString('\\')
+			w.writeRune('\\')
 			w.writeRune('"')
 		case '\n':
 			w.writeString("\n")

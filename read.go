@@ -183,7 +183,7 @@ func (p *Parser) parseNull() any {
 }
 
 func (p *Parser) skipComment() {
-	for _, p.is(Comment) {
+	for p.is(Comment) {
 		p.next()
 	}
 }
