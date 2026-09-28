@@ -1,7 +1,7 @@
 package curly
 
 func IsComment(c, k rune) bool {
-	return c == '/' && c == k
+	return c == '/' && (c == k || c == '*')
 }
 
 func IsHex(c rune) bool {

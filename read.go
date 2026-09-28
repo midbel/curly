@@ -30,7 +30,7 @@ type Parser struct {
 func createParser(r io.Reader, jm mode) *Parser {
 	p := &Parser{
 		scan: Scan(r, jm),
-		mode: stdMode,
+		mode: jm,
 	}
 	p.next()
 	p.next()
@@ -38,7 +38,14 @@ func createParser(r io.Reader, jm mode) *Parser {
 }
 
 func (p *Parser) Parse() (any, error) {
-	return p.parse()
+	val, err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+	if !p.done() {
+		return nil, p.syntaxError("unexpected token after end of file")
+	}
+	return val, nil
 }
 
 func (p *Parser) parse() (any, error) {
@@ -50,7 +57,7 @@ func (p *Parser) parse() (any, error) {
 	case String:
 		return p.parseString(), nil
 	case Number:
-		return p.parseNumber(), nil
+		return p.parseNumber()
 	case Boolean:
 		return p.parseBool(), nil
 	case Null:
@@ -135,14 +142,17 @@ func (p *Parser) parseArray() (any, error) {
 	return arr, nil
 }
 
-func (p *Parser) parseNumber() any {
+func (p *Parser) parseNumber() (any, error) {
 	defer p.next()
 	n, err := strconv.ParseFloat(p.currentLiteral(), 64)
-	if err != nil {
-		n, _ := strconv.ParseInt(p.currentLiteral(), 0, 64)
-		return float64(n)
+	if err == nil {
+		return n, nil
 	}
-	return n
+	i, err := strconv.ParseInt(p.currentLiteral(), 0, 64)
+	if err != nil {
+		return nil, err
+	}
+	return i, nil
 }
 
 func (p *Parser) parseBool() any {

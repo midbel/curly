@@ -8,7 +8,6 @@ import (
 	"io"
 	"strconv"
 	"unicode"
-	"unicode/utf8"
 )
 
 type Scanner struct {
@@ -19,6 +18,8 @@ type Scanner struct {
 	Position
 	old Position
 
+	eof bool
+	err error
 	str bytes.Buffer
 }
 
@@ -32,11 +33,19 @@ func Scan(r io.Reader, mode mode) *Scanner {
 	return &scan
 }
 
+func (s *Scanner) Err() error {
+	return s.err
+}
+
 func (s *Scanner) Scan() Token {
+	var tok Token
+	if s.err != nil {
+		tok.Type = Invalid
+		return tok
+	}
 	defer s.str.Reset()
 	s.skipBlank()
 
-	var tok Token
 	if s.done() {
 		tok.Type = EOF
 		return tok
@@ -80,9 +89,18 @@ func (s *Scanner) scanLiteral(tok *Token) {
 
 func (s *Scanner) scanComment(tok *Token) {
 	s.read()
+	multiline := s.char == '*'
 	s.read()
 	s.skipBlank()
-	for !s.done() && !IsNL(s.char) {
+
+	for !s.done() {
+		if !multiline && IsNL(s.char) {
+			break
+		} else if multiline && s.char == '*' && s.peek() == '/' {
+			s.read()
+			s.read()
+			break
+		}
 		s.write()
 		s.read()
 	}
@@ -196,8 +214,14 @@ func (s *Scanner) scanNumber(tok *Token) {
 		s.read()
 	}
 	if s.char == '-' || s.char == '+' {
-		s.write()
+		if s.char == '-' {
+			s.write()
+		}
 		s.read()
+	}
+	if s.char == '0' && s.peek() != '.' {
+		tok.Type = Invalid
+		return
 	}
 	for !s.done() && IsNumber(s.char) {
 		s.write()
@@ -269,6 +293,9 @@ func (s *Scanner) write() {
 }
 
 func (s *Scanner) read() {
+	if s.eof || s.err != nil {
+		return
+	}
 	s.old = s.Position
 	if s.char == '\n' {
 		s.Line++
@@ -277,8 +304,14 @@ func (s *Scanner) read() {
 	s.Column++
 
 	char, _, err := s.input.ReadRune()
-	if errors.Is(err, io.EOF) {
-		char = utf8.RuneError
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			s.eof = true
+			s.char = 0
+		} else {
+			s.err = err
+		}
+		return
 	}
 	s.char = char
 }
@@ -290,7 +323,7 @@ func (s *Scanner) peek() rune {
 }
 
 func (s *Scanner) done() bool {
-	return s.char == utf8.RuneError
+	return s.eof || s.err != nil
 }
 
 func (s *Scanner) skipBlank() {
