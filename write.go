@@ -15,6 +15,7 @@ type Writer struct {
 	Compact bool
 
 	level int
+	err   error
 }
 
 func Compact(w io.Writer) *Writer {
@@ -32,113 +33,134 @@ func NewWriter(w io.Writer) *Writer {
 }
 
 func (w *Writer) Write(value any) error {
-	defer func() {
-		w.reset()
-		w.ws.Flush()
-	}()
-	return w.writeValue(value)
+	defer w.reset()
+	w.writeValue(value)
+	if w.err != nil {
+		return w.err
+	}
+	return w.flush()
 }
 
-func (w *Writer) writeValue(value any) error {
+func (w *Writer) writeValue(value any) {
 	switch v := value.(type) {
 	case map[string]any:
-		return w.writeObject(v)
+		w.writeObject(v)
 	case []any:
-		return w.writeArray(v)
+		w.writeArray(v)
 	default:
-		return w.writeLiteral(value)
+		w.writeLiteral(value)
 	}
 }
 
-func (w *Writer) writeObject(value map[string]any) error {
+func (w *Writer) writeObject(value map[string]any) {
+	w.writeRune('{')
+	if len(value) == 0 {
+		w.writeRune('}')
+		return
+	}
 	w.enter()
-
-	w.ws.WriteRune('{')
 	w.writeNL()
 	var i int
 	for k, v := range value {
 		if i > 0 {
-			w.ws.WriteRune(',')
+			w.writeRune(',')
 			w.writeNL()
 		}
 		w.writePrefix()
-		if err := w.writeKey(k); err != nil {
-			return err
-		}
-		if err := w.writeValue(v); err != nil {
-			return err
+		w.writeKey(k)
+		w.writeValue(v)
+		if w.err != nil {
+			break
 		}
 		i++
 	}
 	w.leave()
 	w.writeNL()
 	w.writePrefix()
-	w.ws.WriteRune('}')
-	return nil
+	w.writeRune('}')
 }
 
-func (w *Writer) writeArray(value []any) error {
-	w.enter()
+func (w *Writer) writeArray(value []any) {
+	w.writeRune('[')
+	if len(value) == 0 {
+		w.writeRune(']')
+		return
+	}
 
-	w.ws.WriteRune('[')
+	w.enter()
 	w.writeNL()
 	for i := range value {
 		if i > 0 {
-			w.ws.WriteRune(',')
+			w.writeRune(',')
 			w.writeNL()
 		}
 		w.writePrefix()
-		if err := w.writeValue(value[i]); err != nil {
-			return err
+		w.writeValue(value[i])
+		if w.err != nil {
+			return
 		}
 	}
 	w.leave()
 	w.writeNL()
 	w.writePrefix()
-	w.ws.WriteRune(']')
-	return nil
+	w.writeRune(']')
 }
 
-func (w *Writer) writeLiteral(value any) error {
+func (w *Writer) writeLiteral(value any) {
 	if value == nil {
-		w.ws.WriteString("null")
-		return nil
+		w.writeString("null")
+		return
 	}
 	switch v := value.(type) {
 	case bool:
 		if v {
-			w.ws.WriteString("true")
+			w.writeString("true")
 		} else {
-			w.ws.WriteString("false")
+			w.writeString("false")
 		}
 	case float64:
-		w.ws.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
+		w.writeString(strconv.FormatFloat(v, 'f', -1, 64))
 	case int64:
-		w.ws.WriteString(strconv.FormatInt(v, 10))
+		w.writeString(strconv.FormatInt(v, 10))
 	case int:
-		w.ws.WriteString(strconv.FormatInt(int64(v), 10))
+		w.writeString(strconv.FormatInt(int64(v), 10))
 	case string:
-		w.writeString(v)
+		w.writeQuote(v)
 	default:
-		return fmt.Errorf("unsupported json type %T", value)
+		w.err = fmt.Errorf("unsupported json type %T", value)
 	}
-	return nil
 }
 
-func (w *Writer) writeKey(key string) error {
-	w.writeString(key)
-	w.ws.WriteRune(':')
+func (w *Writer) writeKey(key string) {
+	w.writeLiteral(key)
+	w.writeRune(':')
 	if !w.Compact {
-		w.ws.WriteRune(' ')
+		w.writeRune(' ')
 	}
-	return nil
 }
 
-func (w *Writer) writeString(value string) error {
-	w.ws.WriteRune('"')
-	w.ws.WriteString(value)
-	w.ws.WriteRune('"')
-	return nil
+func (w *Writer) writeQuote(value string) {
+	w.writeRune('"')
+	for _, r := range value {
+		switch r {
+		case '"', '\\':
+			w.writeString('\\')
+			w.writeRune('"')
+		case '\n':
+			w.writeString("\n")
+		case '\r':
+			w.writeString("\r")
+		case '\t':
+			w.writeString("\t")
+		case '\b':
+			w.writeString("\b")
+		case '\f':
+			w.writeString("\f")
+		default:
+			w.writeRune(r)
+		}
+	}
+	w.writeRune('"')
 }
 
 func (w *Writer) writePrefix() {
@@ -146,14 +168,28 @@ func (w *Writer) writePrefix() {
 		return
 	}
 	space := strings.Repeat(w.Indent, w.level)
-	w.ws.WriteString(space)
+	w.writeString(space)
 }
 
 func (w *Writer) writeNL() {
 	if w.Compact {
 		return
 	}
-	w.ws.WriteRune('\n')
+	w.writeRune('\n')
+}
+
+func (w *Writer) writeRune(char rune) {
+	if w.err != nil {
+		return
+	}
+	_, w.err = w.ws.WriteRune(char)
+}
+
+func (w *Writer) writeString(str string) {
+	if w.err != nil {
+		return
+	}
+	_, w.err = w.ws.WriteString(str)
 }
 
 func (w *Writer) enter() {
@@ -166,4 +202,24 @@ func (w *Writer) leave() {
 
 func (w *Writer) reset() {
 	w.level = 0
+	w.err = nil
+}
+
+func (w *Writer) flush() error {
+	return w.ws.Flush()
+}
+
+func escapeChar(r rune) bool {
+	switch r {
+	case '"':
+	case '\\':
+	case '\n':
+	case '\r':
+	case '\t':
+	case '\b':
+	case '\f':
+	default:
+		return false
+	}
+	return true
 }

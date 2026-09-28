@@ -140,6 +140,10 @@ func (s *Scanner) scanString(tok *Token) {
 				return
 			}
 		}
+		if s.char < 0x20 {
+			tok.Type = Invalid
+			break
+		}
 		s.write()
 		s.read()
 	}
@@ -195,6 +199,12 @@ func (s *Scanner) scanHexa(tok *Token) {
 	s.read()
 	s.writeRune('0')
 	s.writeRune('x')
+
+	if !IsHex(s.char) {
+		tok.Type = Invalid
+		return
+	}
+	
 	for !s.done() && IsHex(s.char) {
 		s.write()
 		s.read()
@@ -219,7 +229,7 @@ func (s *Scanner) scanNumber(tok *Token) {
 		}
 		s.read()
 	}
-	if s.char == '0' && s.peek() != '.' {
+	if s.char == '0' && IsNumber(s.peek()) {
 		tok.Type = Invalid
 		return
 	}
@@ -317,8 +327,11 @@ func (s *Scanner) read() {
 }
 
 func (s *Scanner) peek() rune {
-	defer s.input.UnreadRune()
-	r, _, _ := s.input.ReadRune()
+	r, _, err := s.input.ReadRune()
+	if err != nil {
+		return 0
+	}
+	s.input.UnreadRune()
 	return r
 }
 

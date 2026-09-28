@@ -43,12 +43,15 @@ func (p *Parser) Parse() (any, error) {
 		return nil, err
 	}
 	if !p.done() {
-		return nil, p.syntaxError("unexpected token after end of file")
+		return nil, p.syntaxError("unexpected token after value")
 	}
-	return val, nil
+	return val, p.scan.Err()
 }
 
 func (p *Parser) parse() (any, error) {
+	if err := p.scan.Err(); err != nil {
+		return nil, err
+	}
 	switch p.curr.Type {
 	case BegArr:
 		return p.parseArray()
@@ -62,8 +65,11 @@ func (p *Parser) parse() (any, error) {
 		return p.parseBool(), nil
 	case Null:
 		return p.parseNull(), nil
+	case Comment:
+		p.skipComment()
+		return p.parse()
 	default:
-		return nil, errSyntax
+		return nil, p.syntaxError("invalid token")
 	}
 }
 
@@ -144,15 +150,15 @@ func (p *Parser) parseArray() (any, error) {
 
 func (p *Parser) parseNumber() (any, error) {
 	defer p.next()
-	n, err := strconv.ParseFloat(p.currentLiteral(), 64)
-	if err == nil {
-		return n, nil
-	}
 	i, err := strconv.ParseInt(p.currentLiteral(), 0, 64)
+	if err == nil {
+		return i, nil
+	}
+	n, err := strconv.ParseFloat(p.currentLiteral(), 64)
 	if err != nil {
 		return nil, err
 	}
-	return i, nil
+	return n, nil
 }
 
 func (p *Parser) parseBool() any {
@@ -171,6 +177,12 @@ func (p *Parser) parseString() any {
 func (p *Parser) parseNull() any {
 	defer p.next()
 	return nil
+}
+
+func (p *Parser) skipComment() {
+	for _, p.is(Comment) {
+		p.next()
+	}
 }
 
 func (p *Parser) done() bool {
