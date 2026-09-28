@@ -66,6 +66,9 @@ func (p *Parser) parse() (any, error) {
 	case Null:
 		return p.parseNull(), nil
 	case Comment:
+		if p.mode == stdMode {
+			return nil, p.syntaxError("comments not supported in standard mode")
+		}
 		p.skipComment()
 		return p.parse()
 	default:
