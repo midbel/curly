@@ -13,7 +13,6 @@ import (
 type Scanner struct {
 	input io.RuneScanner
 	char  rune
-	mode
 
 	Position
 	old Position
@@ -23,12 +22,11 @@ type Scanner struct {
 	str bytes.Buffer
 }
 
-func Scan(r io.Reader, mode mode) *Scanner {
+func Scan(r io.Reader) *Scanner {
 	scan := Scanner{
 		input: bufio.NewReader(r),
-		mode:  mode,
 	}
-	scan.Line = 1
+	scan.Line++
 	scan.read()
 	return &scan
 }
@@ -51,17 +49,13 @@ func (s *Scanner) Scan() Token {
 		return tok
 	}
 	switch {
-	case s.mode.isExtended() && IsComment(s.char, s.peek()):
+	case IsComment(s.char, s.peek()):
 		s.scanComment(&tok)
-	case s.mode.isExtended() && IsLetter(s.char):
-		s.scanLiteral(&tok)
-	case IsLower(s.char):
+	case IsLetter(s.char):
 		s.scanIdent(&tok)
-	case IsQuote(s.char) || (s.mode.isExtended() && IsApos(s.char)):
+	case IsQuote(s.char) || IsApos(s.char):
 		s.scanString(&tok)
-	case IsNumber(s.char) || s.char == '-':
-		s.scanNumber(&tok)
-	case s.mode.isExtended() && (s.char == '+' || s.char == '.'):
+	case IsNumber(s.char) || s.char == '-' || s.char == '+' || s.char == '.':
 		s.scanNumber(&tok)
 	case IsDelim(s.char):
 		s.scanDelimiter(&tok)
@@ -69,22 +63,6 @@ func (s *Scanner) Scan() Token {
 		tok.Type = Invalid
 	}
 	return tok
-}
-
-func (s *Scanner) scanLiteral(tok *Token) {
-	for !s.done() && IsAlpha(s.char) {
-		s.write()
-		s.read()
-	}
-	tok.Literal = s.str.String()
-	switch tok.Literal {
-	case "true", "false":
-		tok.Type = Boolean
-	case "null":
-		tok.Type = Null
-	default:
-		tok.Type = Ident
-	}
 }
 
 func (s *Scanner) scanComment(tok *Token) {
@@ -214,11 +192,11 @@ func (s *Scanner) scanHexa(tok *Token) {
 
 func (s *Scanner) scanNumber(tok *Token) {
 	tok.Type = Number
-	if s.mode.isExtended() && s.char == '0' && s.peek() == 'x' {
+	if s.char == '0' && s.peek() == 'x' {
 		s.scanHexa(tok)
 		return
 	}
-	if s.mode.isExtended() && s.char == '.' {
+	if s.char == '.' {
 		s.writeRune('0')
 		s.writeRune('.')
 		s.read()
@@ -242,9 +220,7 @@ func (s *Scanner) scanNumber(tok *Token) {
 		s.write()
 		s.read()
 		if !IsNumber(s.char) {
-			if !s.mode.isExtended() {
-				tok.Type = Invalid
-			}
+			tok.Type = Invalid
 			return
 		}
 		for !s.done() && IsNumber(s.char) {
@@ -286,6 +262,8 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 		tok.Type = Comma
 	case ':':
 		tok.Type = Colon
+	case '=':
+		tok.Type = Equal
 	default:
 		tok.Type = Invalid
 	}
@@ -359,58 +337,10 @@ type Token struct {
 func (t Token) String() string {
 	var prefix string
 	switch t.Type {
-	case Transform:
-		return "<transform>"
-	case Doc:
-		return "<document>"
-	case Ternary:
-		return "<ternary>"
 	case Colon:
 		return "<colon>"
-	case BegGrp:
-		return "<beg-grp>"
-	case EndGrp:
-		return "<end-grp>"
-	case And:
-		return "<and>"
-	case Or:
-		return "<or>"
-	case In:
-		return "<in>"
-	case Add:
-		return "<add>"
-	case Sub:
-		return "<subtract>"
-	case Mul:
-		return "<multiply>"
-	case Div:
-		return "<divide>"
-	case Mod:
-		return "<modulo>"
-	case Eq:
+	case Equal:
 		return "<equal>"
-	case Ne:
-		return "<not-equal>"
-	case Lt:
-		return "<lesser-than>"
-	case Le:
-		return "<lesser-eq>"
-	case Gt:
-		return "<greater-than>"
-	case Ge:
-		return "<greater-eq>"
-	case Concat:
-		return "<concat>"
-	case Map:
-		return "<map>"
-	case Parent:
-		return "<parent>"
-	case Wildcard:
-		return "<wildcard>"
-	case Descent:
-		return "<descend>"
-	case Range:
-		return "<range>"
 	case EOF:
 		return "<eof>"
 	case BegArr:
@@ -451,6 +381,7 @@ const (
 	EndObj
 	Comma
 	Colon
+	Equal
 	Boolean
 	Null
 	String
@@ -458,32 +389,6 @@ const (
 	Ident
 	Func
 	Comment
-	// query token
-	Doc
-	BegGrp
-	EndGrp
-	In
-	And
-	Or
-	Add
-	Sub
-	Mul
-	Div
-	Mod
-	Eq
-	Ne
-	Lt
-	Le
-	Gt
-	Ge
-	Concat
-	Ternary
-	Map
-	Parent
-	Wildcard
-	Descent
-	Range
-	Transform
 	// common
 	Invalid
 )

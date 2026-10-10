@@ -29,7 +29,7 @@ type Parser struct {
 
 func createParser(r io.Reader, jm mode) *Parser {
 	p := &Parser{
-		scan: Scan(r, jm),
+		scan: Scan(r),
 		mode: jm,
 	}
 	p.next()
