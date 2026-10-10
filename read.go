@@ -10,12 +10,12 @@ import (
 var errSyntax = errors.New("syntax error")
 
 func Decode(r io.Reader) (any, error) {
-	p := createParser(r, stdMode)
+	p := createParser(r)
 	return p.Parse()
 }
 
 func Decode5(r io.Reader) (any, error) {
-	p := createParser(r, json5Mode)
+	p := createParser(r)
 	return p.Parse()
 }
 
@@ -23,14 +23,11 @@ type Parser struct {
 	scan *Scanner
 	curr Token
 	peek Token
-
-	mode
 }
 
-func createParser(r io.Reader, jm mode) *Parser {
+func createParser(r io.Reader) *Parser {
 	p := &Parser{
 		scan: Scan(r),
-		mode: jm,
 	}
 	p.next()
 	p.next()
@@ -66,9 +63,6 @@ func (p *Parser) parse() (any, error) {
 	case Null:
 		return p.parseNull(), nil
 	case Comment:
-		if p.mode == stdMode {
-			return nil, p.syntaxError("comments not supported in standard mode")
-		}
 		p.skipComment()
 		return p.parse()
 	default:
@@ -79,7 +73,7 @@ func (p *Parser) parse() (any, error) {
 func (p *Parser) parseKey() (string, error) {
 	switch {
 	case p.is(String):
-	case p.is(Ident) && p.mode.isExtended():
+	case p.is(Ident):
 	default:
 		return "", p.syntaxError("object key should be string")
 	}
@@ -109,9 +103,6 @@ func (p *Parser) parseObject() (any, error) {
 		switch {
 		case p.is(Comma):
 			p.next()
-			if p.is(EndObj) && !p.mode.isExtended() {
-				return nil, p.syntaxError("trailing comma not allowed")
-			}
 		case p.is(EndObj):
 		default:
 			return nil, p.syntaxError("expected ',' or '}'")
@@ -136,9 +127,6 @@ func (p *Parser) parseArray() (any, error) {
 		switch {
 		case p.is(Comma):
 			p.next()
-			if p.is(EndArr) && !p.mode.isExtended() {
-				return nil, p.syntaxError("trailing comma not allowed")
-			}
 		case p.is(EndArr):
 		default:
 			return nil, p.syntaxError("expected ',' or ']'")
@@ -207,19 +195,4 @@ func (p *Parser) currentLiteral() string {
 
 func (p *Parser) syntaxError(msg string) error {
 	return fmt.Errorf("%w: %s", errSyntax, msg)
-}
-
-type mode int8
-
-const (
-	stdMode mode = 1 << iota
-	json5Mode
-)
-
-func (m mode) isStd() bool {
-	return m == stdMode
-}
-
-func (m mode) isExtended() bool {
-	return m == json5Mode
 }
