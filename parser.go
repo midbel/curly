@@ -10,18 +10,23 @@ import (
 var errSyntax = errors.New("syntax error")
 
 func Decode(r io.Reader) (any, error) {
-	p := createParser(r)
+	p := newStdParser(r)
 	return p.Parse()
 }
 
-type Parser struct {
+func Decode5(r io.Reader) (any, error) {
+	p := newFiveParser(r)
+	return p.Parse()
+}
+
+type stdParser struct {
 	scan *Scanner
 	curr Token
 	peek Token
 }
 
-func createParser(r io.Reader) *Parser {
-	p := &Parser{
+func newStdParser(r io.Reader) *stdParser {
+	p := &stdParser{
 		scan: Scan(r),
 	}
 	p.next()
@@ -29,7 +34,7 @@ func createParser(r io.Reader) *Parser {
 	return p
 }
 
-func (p *Parser) Parse() (any, error) {
+func (p *stdParser) Parse() (any, error) {
 	val, err := p.parse()
 	if err != nil {
 		return nil, err
@@ -40,7 +45,7 @@ func (p *Parser) Parse() (any, error) {
 	return val, p.scan.Err()
 }
 
-func (p *Parser) parse() (any, error) {
+func (p *stdParser) parse() (any, error) {
 	if err := p.scan.Err(); err != nil {
 		return nil, err
 	}
@@ -62,7 +67,7 @@ func (p *Parser) parse() (any, error) {
 	}
 }
 
-func (p *Parser) parseKey() (string, error) {
+func (p *stdParser) parseKey() (string, error) {
 	if !p.is(String) {
 		return "", syntaxError("object key should be string")
 	}
@@ -75,7 +80,7 @@ func (p *Parser) parseKey() (string, error) {
 	return key, nil
 }
 
-func (p *Parser) parseObject() (any, error) {
+func (p *stdParser) parseObject() (any, error) {
 	p.next()
 	obj := make(map[string]any)
 	for !p.done() && !p.is(EndObj) {
@@ -107,7 +112,7 @@ func (p *Parser) parseObject() (any, error) {
 	return obj, nil
 }
 
-func (p *Parser) parseArray() (any, error) {
+func (p *stdParser) parseArray() (any, error) {
 	p.next()
 	var arr []any
 	for !p.done() && !p.is(EndArr) {
@@ -119,7 +124,7 @@ func (p *Parser) parseArray() (any, error) {
 		switch {
 		case p.is(Comma):
 			p.next()
-			if p.is(EndObj) {
+			if p.is(EndArr) {
 				return nil, syntaxError("trailing comma not allowed")
 			}
 		case p.is(EndArr):
@@ -134,7 +139,7 @@ func (p *Parser) parseArray() (any, error) {
 	return arr, nil
 }
 
-func (p *Parser) parseNumber() (any, error) {
+func (p *stdParser) parseNumber() (any, error) {
 	defer p.next()
 	i, err := strconv.ParseInt(p.currentLiteral(), 0, 64)
 	if err == nil {
@@ -147,7 +152,7 @@ func (p *Parser) parseNumber() (any, error) {
 	return n, nil
 }
 
-func (p *Parser) parseBool() any {
+func (p *stdParser) parseBool() any {
 	defer p.next()
 	if p.currentLiteral() == "true" {
 		return true
@@ -155,30 +160,201 @@ func (p *Parser) parseBool() any {
 	return false
 }
 
-func (p *Parser) parseString() any {
+func (p *stdParser) parseString() any {
 	defer p.next()
 	return p.currentLiteral()
 }
 
-func (p *Parser) parseNull() any {
+func (p *stdParser) parseNull() any {
 	defer p.next()
 	return nil
 }
 
-func (p *Parser) done() bool {
+func (p *stdParser) done() bool {
 	return p.is(EOF)
 }
 
-func (p *Parser) is(kind rune) bool {
+func (p *stdParser) is(kind rune) bool {
 	return p.curr.Type == kind
 }
 
-func (p *Parser) next() {
+func (p *stdParser) next() {
 	p.curr = p.peek
 	p.peek = p.scan.Scan()
 }
 
-func (p *Parser) currentLiteral() string {
+func (p *stdParser) currentLiteral() string {
+	return p.curr.Literal
+}
+
+type fiveParser struct {
+	scan *Scanner
+	curr Token
+	peek Token
+}
+
+func newFiveParser(r io.Reader) *fiveParser {
+	p := &fiveParser{
+		scan: Scan(r),
+	}
+	p.next()
+	p.next()
+	return p
+}
+
+func (p *fiveParser) Parse() (any, error) {
+	val, err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+	if !p.done() {
+		return nil, syntaxError("unexpected token after value")
+	}
+	return val, p.scan.Err()
+}
+
+func (p *fiveParser) parse() (any, error) {
+	if err := p.scan.Err(); err != nil {
+		return nil, err
+	}
+	switch p.curr.Type {
+	case BegArr:
+		return p.parseArray()
+	case BegObj:
+		return p.parseObject()
+	case String, StringSingleQuoted:
+		return p.parseString(), nil
+	case Number, NumberHex, NumberTrailingDot, NumberLeadingDot, NumberLeadingPlus:
+		return p.parseNumber()
+	case Boolean:
+		return p.parseBool(), nil
+	case Null:
+		return p.parseNull(), nil
+	default:
+		return nil, syntaxError("invalid token")
+	}
+}
+
+func (p *fiveParser) parseKey() (string, error) {
+	switch p.curr.Type {
+	case String, StringSingleQuoted, Ident:
+	default:
+		return "", syntaxError("object key should be string")
+	}
+	key := p.currentLiteral()
+	p.next()
+	if !p.is(Colon) {
+		return "", syntaxError("missing colon after key")
+	}
+	p.next()
+	return key, nil
+}
+
+func (p *fiveParser) parseObject() (any, error) {
+	p.next()
+	obj := make(map[string]any)
+	for !p.done() && !p.is(EndObj) {
+		k, err := p.parseKey()
+		if err != nil {
+			return nil, err
+		}
+		a, err := p.parse()
+		if err != nil {
+			return nil, err
+		}
+
+		obj[k] = a
+		switch {
+		case p.is(Comma):
+			p.next()
+		case p.is(EndObj):
+		default:
+			return nil, syntaxError("expected ',' or '}'")
+		}
+	}
+	if !p.is(EndObj) {
+		return nil, syntaxError("missing '}' at end of object")
+	}
+	p.next()
+	return obj, nil
+}
+
+func (p *fiveParser) parseArray() (any, error) {
+	p.next()
+	var arr []any
+	for !p.done() && !p.is(EndArr) {
+		a, err := p.parse()
+		if err != nil {
+			return nil, err
+		}
+		arr = append(arr, a)
+		switch {
+		case p.is(Comma):
+			p.next()
+		case p.is(EndArr):
+		default:
+			return nil, syntaxError("expected ',' or ']'")
+		}
+	}
+	if !p.is(EndArr) {
+		return nil, syntaxError("missing ']' at end of array")
+	}
+	p.next()
+	return arr, nil
+}
+
+func (p *fiveParser) parseNumber() (any, error) {
+	base := 10
+	if p.is(NumberHex) {
+		base = 16
+	}
+	defer p.next()
+	i, err := strconv.ParseInt(p.currentLiteral(), base, 64)
+	if err == nil {
+		return i, nil
+	}
+	if err != nil && p.is(NumberHex) {
+		return nil, syntaxError("invalid hex number")
+	}
+	n, err := strconv.ParseFloat(p.currentLiteral(), 64)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func (p *fiveParser) parseBool() any {
+	defer p.next()
+	if p.currentLiteral() == "true" {
+		return true
+	}
+	return false
+}
+
+func (p *fiveParser) parseString() any {
+	defer p.next()
+	return p.currentLiteral()
+}
+
+func (p *fiveParser) parseNull() any {
+	defer p.next()
+	return nil
+}
+
+func (p *fiveParser) done() bool {
+	return p.is(EOF)
+}
+
+func (p *fiveParser) is(kind rune) bool {
+	return p.curr.Type == kind
+}
+
+func (p *fiveParser) next() {
+	p.curr = p.peek
+	p.peek = p.scan.Scan()
+}
+
+func (p *fiveParser) currentLiteral() string {
 	return p.curr.Literal
 }
 
