@@ -14,11 +14,6 @@ func Decode(r io.Reader) (any, error) {
 	return p.Parse()
 }
 
-func Decode5(r io.Reader) (any, error) {
-	p := createParser(r)
-	return p.Parse()
-}
-
 type Parser struct {
 	scan *Scanner
 	curr Token
@@ -40,7 +35,7 @@ func (p *Parser) Parse() (any, error) {
 		return nil, err
 	}
 	if !p.done() {
-		return nil, p.syntaxError("unexpected token after value")
+		return nil, syntaxError("unexpected token after value")
 	}
 	return val, p.scan.Err()
 }
@@ -62,25 +57,19 @@ func (p *Parser) parse() (any, error) {
 		return p.parseBool(), nil
 	case Null:
 		return p.parseNull(), nil
-	case Comment:
-		p.skipComment()
-		return p.parse()
 	default:
-		return nil, p.syntaxError("invalid token")
+		return nil, syntaxError("invalid token")
 	}
 }
 
 func (p *Parser) parseKey() (string, error) {
-	switch {
-	case p.is(String):
-	case p.is(Ident):
-	default:
-		return "", p.syntaxError("object key should be string")
+	if !p.is(String) {
+		return "", syntaxError("object key should be string")
 	}
 	key := p.currentLiteral()
 	p.next()
 	if !p.is(Colon) {
-		return "", p.syntaxError("missing colon after key")
+		return "", syntaxError("missing colon after key")
 	}
 	p.next()
 	return key, nil
@@ -103,13 +92,16 @@ func (p *Parser) parseObject() (any, error) {
 		switch {
 		case p.is(Comma):
 			p.next()
+			if p.is(EndObj) {
+				return nil, syntaxError("trailing comma not allowed")
+			}
 		case p.is(EndObj):
 		default:
-			return nil, p.syntaxError("expected ',' or '}'")
+			return nil, syntaxError("expected ',' or '}'")
 		}
 	}
 	if !p.is(EndObj) {
-		return nil, p.syntaxError("missing '}' at end of object")
+		return nil, syntaxError("missing '}' at end of object")
 	}
 	p.next()
 	return obj, nil
@@ -127,13 +119,16 @@ func (p *Parser) parseArray() (any, error) {
 		switch {
 		case p.is(Comma):
 			p.next()
+			if p.is(EndObj) {
+				return nil, syntaxError("trailing comma not allowed")
+			}
 		case p.is(EndArr):
 		default:
-			return nil, p.syntaxError("expected ',' or ']'")
+			return nil, syntaxError("expected ',' or ']'")
 		}
 	}
 	if !p.is(EndArr) {
-		return nil, p.syntaxError("missing ']' at end of array")
+		return nil, syntaxError("missing ']' at end of array")
 	}
 	p.next()
 	return arr, nil
@@ -170,12 +165,6 @@ func (p *Parser) parseNull() any {
 	return nil
 }
 
-func (p *Parser) skipComment() {
-	for p.is(Comment) {
-		p.next()
-	}
-}
-
 func (p *Parser) done() bool {
 	return p.is(EOF)
 }
@@ -193,6 +182,6 @@ func (p *Parser) currentLiteral() string {
 	return p.curr.Literal
 }
 
-func (p *Parser) syntaxError(msg string) error {
+func syntaxError(msg string) error {
 	return fmt.Errorf("%w: %s", errSyntax, msg)
 }

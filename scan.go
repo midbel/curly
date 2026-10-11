@@ -51,7 +51,7 @@ func (s *Scanner) Scan() Token {
 	switch {
 	case IsComment(s.char, s.peek()):
 		s.scanComment(&tok)
-	case IsLetter(s.char):
+	case IsLetter(s.char) || s.char == '_':
 		s.scanIdent(&tok)
 	case IsQuote(s.char) || IsApos(s.char):
 		s.scanString(&tok)
@@ -91,6 +91,7 @@ func (s *Scanner) scanIdent(tok *Token) {
 		s.write()
 		s.read()
 	}
+	tok.Type = Ident
 	tok.Literal = s.str.String()
 	switch tok.Literal {
 	case "true", "false":
@@ -127,6 +128,9 @@ func (s *Scanner) scanString(tok *Token) {
 	}
 	tok.Literal = s.str.String()
 	tok.Type = String
+	if s.char == '\'' {
+		tok.Type = StringSingleQuoted
+	}
 	if s.char != quote {
 		tok.Type = Invalid
 	} else {
@@ -187,6 +191,7 @@ func (s *Scanner) scanHexa(tok *Token) {
 		s.write()
 		s.read()
 	}
+	tok.Type = NumberHex
 	tok.Literal = s.str.String()
 }
 
@@ -197,6 +202,7 @@ func (s *Scanner) scanNumber(tok *Token) {
 		return
 	}
 	if s.char == '.' {
+		tok.Type = NumberLeadingDot
 		s.writeRune('0')
 		s.writeRune('.')
 		s.read()
@@ -204,6 +210,9 @@ func (s *Scanner) scanNumber(tok *Token) {
 	if s.char == '-' || s.char == '+' {
 		if s.char == '-' {
 			s.write()
+		}
+		if s.char == '+' {
+			tok.Type = NumberLeadingPlus
 		}
 		s.read()
 	}
@@ -220,7 +229,7 @@ func (s *Scanner) scanNumber(tok *Token) {
 		s.write()
 		s.read()
 		if !IsNumber(s.char) {
-			tok.Type = Invalid
+			tok.Type = NumberTrailingDot
 			return
 		}
 		for !s.done() && IsNumber(s.char) {
@@ -357,14 +366,12 @@ func (t Token) String() string {
 		prefix = "boolean"
 	case Null:
 		return "<null>"
-	case String:
+	case String, StringSingleQuoted:
 		prefix = "string"
-	case Number:
+	case Number, NumberHex, NumberLeadingPlus, NumberLeadingDot, NumberTrailingDot:
 		prefix = "number"
 	case Ident:
 		prefix = "identifier"
-	case Func:
-		prefix = "function"
 	case Comment:
 		prefix = "comment"
 	case Invalid:
@@ -385,10 +392,61 @@ const (
 	Boolean
 	Null
 	String
+	StringSingleQuoted
 	Number
+	NumberHex
+	NumberLeadingPlus
+	NumberLeadingDot
+	NumberTrailingDot
 	Ident
-	Func
 	Comment
-	// common
 	Invalid
 )
+
+func IsComment(c, k rune) bool {
+	return c == '/' && (c == k || c == '*')
+}
+
+func IsHex(c rune) bool {
+	return IsNumber(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
+func IsNumber(c rune) bool {
+	return c >= '0' && c <= '9'
+}
+
+func IsLower(c rune) bool {
+	return c >= 'a' && c <= 'z'
+}
+
+func IsUpper(c rune) bool {
+	return c >= 'A' && c <= 'Z'
+}
+
+func IsLetter(c rune) bool {
+	return IsLower(c) || IsUpper(c)
+}
+
+func IsAlpha(c rune) bool {
+	return IsLetter(c) || IsNumber(c) || c == '_'
+}
+
+func IsApos(c rune) bool {
+	return c == '\''
+}
+
+func IsQuote(c rune) bool {
+	return c == '"'
+}
+
+func IsBackQuote(c rune) bool {
+	return c == '`'
+}
+
+func IsDelim(c rune) bool {
+	return c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':' || c == '='
+}
+
+func IsNL(c rune) bool {
+	return c == '\n' || c == '\r'
+}
