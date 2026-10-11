@@ -98,7 +98,6 @@ func (s *Scanner) scanIdent(tok *Token) {
 		s.write()
 		s.read()
 	}
-	tok.Type = Ident
 	tok.Literal = s.str.String()
 	switch tok.Literal {
 	case "true", "false":
@@ -106,7 +105,7 @@ func (s *Scanner) scanIdent(tok *Token) {
 	case "null":
 		tok.Type = Null
 	default:
-		tok.Type = Invalid
+		tok.Type = Ident
 	}
 }
 
