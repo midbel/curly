@@ -230,6 +230,9 @@ func (p *fiveParser) parse() (any, error) {
 		return p.parseBool(), nil
 	case Null:
 		return p.parseNull(), nil
+	case Comment:
+		p.skipComments()
+		return p.parse()
 	default:
 		return nil, syntaxError("invalid token")
 	}
@@ -339,6 +342,12 @@ func (p *fiveParser) parseString() any {
 func (p *fiveParser) parseNull() any {
 	defer p.next()
 	return nil
+}
+
+func (p *fiveParser) skipComments() {
+	for p.is(Comment) {
+		p.next()
+	}
 }
 
 func (p *fiveParser) done() bool {
