@@ -230,7 +230,7 @@ func (p *fiveParser) parse() (any, error) {
 		return p.parseBool(), nil
 	case Null:
 		return p.parseNull(), nil
-	case Comment:
+	case CommentLine, CommentMulti:
 		p.skipComments()
 		return p.parse()
 	default:
@@ -345,7 +345,7 @@ func (p *fiveParser) parseNull() any {
 }
 
 func (p *fiveParser) skipComments() {
-	for p.is(Comment) {
+	for p.is(CommentLine) || p.is(CommentMulti) {
 		p.next()
 	}
 }
@@ -364,6 +364,128 @@ func (p *fiveParser) next() {
 }
 
 func (p *fiveParser) currentLiteral() string {
+	return p.curr.Literal
+}
+
+type uclParser struct {
+	scan *Scanner
+	curr Token
+	peek Token
+}
+
+func newUclParser(r io.Reader) *uclParser {
+	p := &uclParser{
+		scan: Scan(r),
+	}
+	p.next()
+	p.next()
+	return p
+}
+
+func (p *uclParser) Parse() (any, error) {
+	val, err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+	if !p.done() {
+		return nil, syntaxError("unexpected token after value")
+	}
+	return val, p.scan.Err()
+}
+
+func (p *uclParser) parse() (any, error) {
+	if err := p.scan.Err(); err != nil {
+		return nil, err
+	}
+	switch p.curr.Type {
+	case BegArr:
+		return p.parseArray()
+	case BegObj:
+		return p.parseObject()
+	case String:
+		return p.parseString(), nil
+	case Ident:
+		return nil, nil
+	case Number:
+		return p.parseNumber()
+	case Boolean:
+		return p.parseBool(), nil
+	case Null:
+		return p.parseNull(), nil
+	case CommentHash, CommentMulti:
+		p.skipComments()
+		return p.parse()
+	default:
+		return nil, syntaxError("invalid token")
+	}
+}
+
+func (p *uclParser) parseObject() (any, error) {
+	return nil, nil
+}
+
+func (p *uclParser) parseArray() (any, error) {
+	return nil, nil
+}
+
+func (p *uclParser) parseNumber() (any, error) {
+	base := 10
+	if p.is(NumberHex) {
+		base = 16
+	}
+	defer p.next()
+	i, err := strconv.ParseInt(p.currentLiteral(), base, 64)
+	if err == nil {
+		return i, nil
+	}
+	if err != nil && p.is(NumberHex) {
+		return nil, syntaxError("invalid hex number")
+	}
+	n, err := strconv.ParseFloat(p.currentLiteral(), 64)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func (p *uclParser) parseBool() any {
+	defer p.next()
+	if p.currentLiteral() == "true" {
+		return true
+	}
+	return false
+}
+
+func (p *uclParser) parseString() any {
+	defer p.next()
+	return p.currentLiteral()
+}
+
+func (p *uclParser) parseNull() any {
+	defer p.next()
+	return nil
+}
+
+func (p *uclParser) skipComments() {
+	for p.is(CommentHash) || p.is(CommentMulti) {
+		p.next()
+	}
+}
+
+func (p *uclParser) done() bool {
+	return p.is(EOF)
+}
+
+func (p *uclParser) is(kind rune) bool {
+	return p.curr.Type == kind
+}
+
+func (p *uclParser) next() {
+	p.curr = p.peek
+	p.peek = p.scan.Scan()
+}
+
+func (p *uclParser) currentLiteral() string {
 	return p.curr.Literal
 }
 

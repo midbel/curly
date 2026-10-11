@@ -66,6 +66,7 @@ func (s *Scanner) Scan() Token {
 }
 
 func (s *Scanner) scanComment(tok *Token) {
+	comment := s.char
 	s.read()
 	multiline := s.char == '*'
 	s.read()
@@ -83,7 +84,13 @@ func (s *Scanner) scanComment(tok *Token) {
 		s.read()
 	}
 	tok.Literal = s.str.String()
-	tok.Type = Comment
+	tok.Type = CommentLine
+	if comment == '#' {
+		tok.Type = CommentHash
+	}
+	if multiline {
+		tok.Type = CommentMulti
+	}
 }
 
 func (s *Scanner) scanIdent(tok *Token) {
@@ -186,7 +193,7 @@ func (s *Scanner) scanHexa(tok *Token) {
 		tok.Type = Invalid
 		return
 	}
-	
+
 	for !s.done() && IsHex(s.char) {
 		s.write()
 		s.read()
@@ -269,6 +276,8 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 		tok.Type = EndObj
 	case ',':
 		tok.Type = Comma
+	case ';':
+		tok.Type = Semicolon
 	case ':':
 		tok.Type = Colon
 	case '=':
@@ -362,6 +371,8 @@ func (t Token) String() string {
 		return "<end-obj>"
 	case Comma:
 		return "<comma>"
+	case Semicolon:
+		return "<semicolon>"
 	case Boolean:
 		prefix = "boolean"
 	case Null:
@@ -372,7 +383,7 @@ func (t Token) String() string {
 		prefix = "number"
 	case Ident:
 		prefix = "identifier"
-	case Comment:
+	case CommentHash, CommentLine, CommentMulti:
 		prefix = "comment"
 	case Invalid:
 		prefix = "invalid"
@@ -387,6 +398,7 @@ const (
 	BegObj
 	EndObj
 	Comma
+	Semicolon
 	Colon
 	Equal
 	Boolean
@@ -399,11 +411,16 @@ const (
 	NumberLeadingDot
 	NumberTrailingDot
 	Ident
-	Comment
+	CommentLine
+	CommentHash
+	CommentMulti
 	Invalid
 )
 
 func IsComment(c, k rune) bool {
+	if c == '#' {
+		return true
+	}
 	return c == '/' && (c == k || c == '*')
 }
 
@@ -444,7 +461,7 @@ func IsBackQuote(c rune) bool {
 }
 
 func IsDelim(c rune) bool {
-	return c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':' || c == '='
+	return c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ';' || c == ':' || c == '='
 }
 
 func IsNL(c rune) bool {
