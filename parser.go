@@ -257,6 +257,7 @@ func (p *fiveParser) parseObject() (any, error) {
 	p.next()
 	obj := make(map[string]any)
 	for !p.done() && !p.is(EndObj) {
+		p.skipComments()
 		k, err := p.parseKey()
 		if err != nil {
 			return nil, err
@@ -286,6 +287,7 @@ func (p *fiveParser) parseArray() (any, error) {
 	p.next()
 	var arr []any
 	for !p.done() && !p.is(EndArr) {
+		p.skipComments()
 		a, err := p.parse()
 		if err != nil {
 			return nil, err
