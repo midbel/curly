@@ -256,8 +256,11 @@ func (p *fiveParser) parseKey() (string, error) {
 func (p *fiveParser) parseObject() (any, error) {
 	p.next()
 	obj := make(map[string]any)
-	for !p.done() && !p.is(EndObj) {
+	for !p.done() {
 		p.skipComments()
+		if p.is(EndObj) {
+			break
+		}
 		k, err := p.parseKey()
 		if err != nil {
 			return nil, err
@@ -286,8 +289,11 @@ func (p *fiveParser) parseObject() (any, error) {
 func (p *fiveParser) parseArray() (any, error) {
 	p.next()
 	var arr []any
-	for !p.done() && !p.is(EndArr) {
+	for !p.done() {
 		p.skipComments()
+		if p.is(EndArr) {
+			break
+		}
 		a, err := p.parse()
 		if err != nil {
 			return nil, err
