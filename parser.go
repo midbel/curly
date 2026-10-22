@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 )
 
 var errSyntax = errors.New("syntax error")
@@ -14,7 +15,7 @@ func Json(r io.Reader) (any, error) {
 	return p.Parse()
 }
 
-func Ucl(r io.Reader) (any, error ){
+func Ucl(r io.Reader) (any, error) {
 	p := newUclParser(r)
 	return p.Parse()
 }
@@ -64,7 +65,7 @@ func (p *stdParser) parse() (any, error) {
 	case Number:
 		return p.parseNumber()
 	case Boolean:
-		return p.parseBool(), nil
+		return p.parseBool()
 	case Null:
 		return p.parseNull(), nil
 	default:
@@ -146,7 +147,7 @@ func (p *stdParser) parseArray() (any, error) {
 
 func (p *stdParser) parseNumber() (any, error) {
 	defer p.next()
-	i, err := strconv.ParseInt(p.currentLiteral(), 0, 64)
+	i, err := strconv.ParseInt(p.currentLiteral(), 10, 64)
 	if err == nil {
 		return i, nil
 	}
@@ -157,12 +158,15 @@ func (p *stdParser) parseNumber() (any, error) {
 	return n, nil
 }
 
-func (p *stdParser) parseBool() any {
+func (p *stdParser) parseBool() (any, error) {
 	defer p.next()
 	if p.currentLiteral() == "true" {
-		return true
+		return true, nil
 	}
-	return false
+	if p.currentLiteral() == "false" {
+		return false, nil
+	}
+	return false, syntaxError("invalid boolean value")
 }
 
 func (p *stdParser) parseString() any {
@@ -232,7 +236,7 @@ func (p *fiveParser) parse() (any, error) {
 	case Number, NumberHex, NumberTrailingDot, NumberLeadingDot, NumberLeadingPlus:
 		return p.parseNumber()
 	case Boolean:
-		return p.parseBool(), nil
+		return p.parseBool()
 	case Null:
 		return p.parseNull(), nil
 	case CommentLine, CommentMulti:
@@ -320,12 +324,16 @@ func (p *fiveParser) parseArray() (any, error) {
 }
 
 func (p *fiveParser) parseNumber() (any, error) {
-	base := 10
+	var (
+		base  = 10
+		value = p.currentLiteral()
+	)
 	if p.is(NumberHex) {
 		base = 16
+		value = strings.TrimPrefix(value, "0x")
 	}
 	defer p.next()
-	i, err := strconv.ParseInt(p.currentLiteral(), base, 64)
+	i, err := strconv.ParseInt(value, base, 64)
 	if err == nil {
 		return i, nil
 	}
@@ -339,12 +347,15 @@ func (p *fiveParser) parseNumber() (any, error) {
 	return n, nil
 }
 
-func (p *fiveParser) parseBool() any {
+func (p *fiveParser) parseBool() (any, error) {
 	defer p.next()
 	if p.currentLiteral() == "true" {
-		return true
+		return true, nil
 	}
-	return false
+	if p.currentLiteral() == "false" {
+		return false, nil
+	}
+	return false, syntaxError("invalid boolean value")
 }
 
 func (p *fiveParser) parseString() any {
@@ -411,92 +422,127 @@ func (p *uclParser) parse() (any, error) {
 		return nil, err
 	}
 	for !p.done() {
+		_, err := p.parseMember()
+		if err != nil {
+			return nil, err
+		}
+		// p.skipComments()
+		// _, err := p.parsePath()
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// switch {
+		// case p.is(Equal) || p.is(Colon):
+		// 	p.next()
+		// 	_, _, err = p.parseValue()
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
+		// case p.is(BegObj):
+		// 	_, err = p.parseObject()
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
+		// default:
+		// 	return nil, syntaxError("unexpected token after key")
+		// }
+	}
+	return nil, nil
+}
+
+func (p *uclParser) parseValue() (any, bool, error) {
+	var (
+		ret any
+		comp bool
+		err error
+	)
+	switch p.curr.Type {
+	case BegObj:
+		ret, err = p.parseObject()
+		comp = true
+	case BegArr:
+		ret, err = p.parseArray()
+		comp = true
+	case Null:
+		ret = p.parseNull()
+	case Boolean:
+		ret, err = p.parseBool()
+	case Number, NumberHex, NumberLeadingPlus, NumberLeadingDot, NumberTrailingDot:
+		ret, err = p.parseNumber()
+	case String, StringSingleQuoted, Ident:
+		ret = p.parseString()
+	default:
+		err = syntaxError("invalid value")
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return ret, comp, nil
+}
+
+func (p *uclParser) parsePath() (any, error) {
+	for i := 0; !p.done(); i++ {
+		if p.is(Equal) || p.is(Colon) || p.is(BegObj) {
+			if i == 0 {
+				return nil, syntaxError("missing key")
+			}
+			break
+		}
 		_, err := p.parseKey()
 		if err != nil {
 			return nil, err
 		}
-		switch {
-		case p.is(Equal) || p.is(Colon):
-			p.next()
-			_, err = p.parseValue()
-			if err != nil {
-				return nil, err
-			}
-		case p.is(BegObj):
-			_, err = p.parseObject()
-			if err != nil {
-				return nil, err
-			}
-		default:
-			return nil, syntaxError("unexpected token after key")
-		}
 	}
 	return nil, nil
-}
-
-func (p *uclParser) parseValue() (any, error) {
-	switch p.curr.Type {
-	case BegObj:
-		return p.parseObject()
-	case BegArr:
-		return p.parseArray()
-	case Null:
-		return p.parseNull(), nil
-	case Boolean:
-		return p.parseBool(), nil
-	case Number, NumberHex, NumberLeadingPlus, NumberLeadingDot, NumberTrailingDot:
-		return p.parseNumber()
-	case String, StringSingleQuoted, Ident:
-		return p.parseString(), nil
-	default:
-		return nil, syntaxError("invalid value")
-	}
 }
 
 func (p *uclParser) parseKey() (any, error) {
-	for !p.done() {
-		if p.is(Equal) || p.is(Colon) || p.is(BegObj) {
-			break
-		}
-		switch {
-		case p.is(String) || p.is(StringSingleQuoted) || p.is(Ident):
-			p.next()
-		default:
-			return nil, syntaxError("unexpected token in key")
+	switch {
+	case p.is(String) || p.is(StringSingleQuoted) || p.is(Ident):
+		fmt.Println("> key", p.curr)
+		p.next()
+	default:
+		return nil, syntaxError("unexpected token in key")
+	}	
+	return nil, nil
+}
+
+func (p *uclParser) parseMember() (any, error) {
+	p.skipComments()
+	_, err := p.parsePath()
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case p.is(Equal) || p.is(Colon):
+		p.next()
+	case p.is(BegObj):
+	default:
+		return nil, syntaxError("missing separator after key")
+	}
+	ret, composite, err := p.parseValue()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(">> object value", ret)
+	switch {
+	case !composite && (p.is(Semicolon) || p.is(Comma)):
+		p.next()
+	case p.is(EndObj):
+	default:
+		if !composite {
+			return nil, syntaxError("expected ',' or ';' or '}'")
 		}
 	}
-	return nil, nil
+	return ret, nil
 }
 
 func (p *uclParser) parseObject() (any, error) {
 	p.next()
 	for !p.done() && !p.is(EndObj) {
-		_, err := p.parseKey()
+		_, err := p.parseMember()
 		if err != nil {
 			return nil, err
-		}
-		var startObj bool
-		switch {
-		case p.is(Equal) || p.is(Colon):
-			p.next()
-		case p.is(BegObj):
-			startObj = true
-		default:
-			return nil, syntaxError("missing separator after key")
-		}
-		_, err = p.parseValue()
-		if err != nil {
-			return nil, err
-		}
-		switch {
-		case p.is(Semicolon) || p.is(Comma):
-			p.next()
-		case p.is(EndObj):
-		default:
-			if startObj {
-				break
-			}
-			return nil, syntaxError("expected ',' or ';' or '}'")
 		}
 	}
 	if !p.is(EndObj) {
@@ -509,10 +555,11 @@ func (p *uclParser) parseObject() (any, error) {
 func (p *uclParser) parseArray() (any, error) {
 	p.next()
 	for !p.done() && !p.is(EndArr) {
-		_, err := p.parseValue()
+		ret, _, err := p.parseValue()
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println(">> array value", ret)
 		switch {
 		case p.is(Comma):
 			p.next()
@@ -529,12 +576,16 @@ func (p *uclParser) parseArray() (any, error) {
 }
 
 func (p *uclParser) parseNumber() (any, error) {
-	base := 10
+	var (
+		base  = 10
+		value = p.currentLiteral()
+	)
 	if p.is(NumberHex) {
 		base = 16
+		value = strings.TrimPrefix(value, "0x")
 	}
 	defer p.next()
-	i, err := strconv.ParseInt(p.currentLiteral(), base, 64)
+	i, err := strconv.ParseInt(value, base, 64)
 	if err == nil {
 		return i, nil
 	}
@@ -548,12 +599,15 @@ func (p *uclParser) parseNumber() (any, error) {
 	return n, nil
 }
 
-func (p *uclParser) parseBool() any {
+func (p *uclParser) parseBool() (any, error) {
 	defer p.next()
 	if p.currentLiteral() == "true" {
-		return true
+		return true, nil
 	}
-	return false
+	if p.currentLiteral() == "false" {
+		return false, nil
+	}
+	return false, syntaxError("invalid boolean value")
 }
 
 func (p *uclParser) parseString() any {
