@@ -9,12 +9,17 @@ import (
 
 var errSyntax = errors.New("syntax error")
 
-func Decode(r io.Reader) (any, error) {
+func Json(r io.Reader) (any, error) {
 	p := newStdParser(r)
 	return p.Parse()
 }
 
-func Decode5(r io.Reader) (any, error) {
+func Ucl(r io.Reader) (any, error ){
+	p := newUclParser(r)
+	return p.Parse()
+}
+
+func Five(r io.Reader) (any, error) {
 	p := newFiveParser(r)
 	return p.Parse()
 }
@@ -405,34 +410,121 @@ func (p *uclParser) parse() (any, error) {
 	if err := p.scan.Err(); err != nil {
 		return nil, err
 	}
+	for !p.done() {
+		_, err := p.parseKey()
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case p.is(Equal) || p.is(Colon):
+			p.next()
+			_, err = p.parseValue()
+			if err != nil {
+				return nil, err
+			}
+		case p.is(BegObj):
+			_, err = p.parseObject()
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, syntaxError("unexpected token after key")
+		}
+	}
+	return nil, nil
+}
+
+func (p *uclParser) parseValue() (any, error) {
 	switch p.curr.Type {
-	case BegArr:
-		return p.parseArray()
 	case BegObj:
 		return p.parseObject()
-	case String:
-		return p.parseString(), nil
-	case Ident:
-		return nil, nil
-	case Number:
-		return p.parseNumber()
-	case Boolean:
-		return p.parseBool(), nil
+	case BegArr:
+		return p.parseArray()
 	case Null:
 		return p.parseNull(), nil
-	case CommentHash, CommentMulti:
-		p.skipComments()
-		return p.parse()
+	case Boolean:
+		return p.parseBool(), nil
+	case Number, NumberHex, NumberLeadingPlus, NumberLeadingDot, NumberTrailingDot:
+		return p.parseNumber()
+	case String, StringSingleQuoted, Ident:
+		return p.parseString(), nil
 	default:
-		return nil, syntaxError("invalid token")
+		return nil, syntaxError("invalid value")
 	}
 }
 
+func (p *uclParser) parseKey() (any, error) {
+	for !p.done() {
+		if p.is(Equal) || p.is(Colon) || p.is(BegObj) {
+			break
+		}
+		switch {
+		case p.is(String) || p.is(StringSingleQuoted) || p.is(Ident):
+			p.next()
+		default:
+			return nil, syntaxError("unexpected token in key")
+		}
+	}
+	return nil, nil
+}
+
 func (p *uclParser) parseObject() (any, error) {
+	p.next()
+	for !p.done() && !p.is(EndObj) {
+		_, err := p.parseKey()
+		if err != nil {
+			return nil, err
+		}
+		var startObj bool
+		switch {
+		case p.is(Equal) || p.is(Colon):
+			p.next()
+		case p.is(BegObj):
+			startObj = true
+		default:
+			return nil, syntaxError("missing separator after key")
+		}
+		_, err = p.parseValue()
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case p.is(Semicolon) || p.is(Comma):
+			p.next()
+		case p.is(EndObj):
+		default:
+			if startObj {
+				break
+			}
+			return nil, syntaxError("expected ',' or ';' or '}'")
+		}
+	}
+	if !p.is(EndObj) {
+		return nil, syntaxError("missing '}' at end of object")
+	}
+	p.next()
 	return nil, nil
 }
 
 func (p *uclParser) parseArray() (any, error) {
+	p.next()
+	for !p.done() && !p.is(EndArr) {
+		_, err := p.parseValue()
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case p.is(Comma):
+			p.next()
+		case p.is(EndArr):
+		default:
+			return nil, syntaxError("expected ',' or ']'")
+		}
+	}
+	if !p.is(EndArr) {
+		return nil, syntaxError("missing ']' at end of array")
+	}
+	p.next()
 	return nil, nil
 }
 
