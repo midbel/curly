@@ -401,6 +401,7 @@ func newUclParser(r io.Reader) *uclParser {
 	p := &uclParser{
 		scan: Scan(r),
 	}
+	p.scan.KeepNL()
 	p.next()
 	p.next()
 	return p

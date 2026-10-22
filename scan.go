@@ -13,6 +13,7 @@ import (
 type Scanner struct {
 	input io.RuneScanner
 	char  rune
+	emitNL bool
 
 	Position
 	old Position
@@ -31,6 +32,10 @@ func Scan(r io.Reader) *Scanner {
 	return &scan
 }
 
+func (s *Scanner) KeepNL() {
+	s.emitNL = true
+}
+
 func (s *Scanner) Err() error {
 	return s.err
 }
@@ -42,6 +47,10 @@ func (s *Scanner) Scan() Token {
 		return tok
 	}
 	defer s.str.Reset()
+	if s.emitNL && (s.char == '\r' || s.char == '\n') {
+		s.scanNL(&tok)
+		return tok
+	}
 	s.skipBlank()
 
 	if s.done() {
@@ -63,6 +72,11 @@ func (s *Scanner) Scan() Token {
 		tok.Type = Invalid
 	}
 	return tok
+}
+
+func (s *Scanner) scanNL(tok *Token) {
+	tok.Type = Newline
+	s.skipNL()
 }
 
 func (s *Scanner) scanComment(tok *Token) {
@@ -340,6 +354,12 @@ func (s *Scanner) skipBlank() {
 	}
 }
 
+func (s *Scanner) skipNL() {
+	for !s.done() && IsNL(s.char) {
+		s.read()
+	}
+}
+
 type Position struct {
 	Line   int
 	Column int
@@ -354,6 +374,8 @@ type Token struct {
 func (t Token) String() string {
 	var prefix string
 	switch t.Type {
+	case Newline:
+		return "<newline>"
 	case Colon:
 		return "<colon>"
 	case Equal:
@@ -410,6 +432,7 @@ const (
 	NumberLeadingDot
 	NumberTrailingDot
 	Ident
+	Newline
 	CommentLine
 	CommentHash
 	CommentMulti
