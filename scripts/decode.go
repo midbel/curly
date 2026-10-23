@@ -46,6 +46,9 @@ func tokenize(r io.Reader) error {
 }
 
 func parse(r io.Reader) error {
-	_, err := curly.Ucl(r)
+	ret, err := curly.Ucl(r)
+	if err == nil {
+		fmt.Println(ret)
+	}
 	return err
 }

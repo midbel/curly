@@ -460,13 +460,22 @@ func (p *uclParser) parse() (any, error) {
 	if err := p.scan.Err(); err != nil {
 		return nil, err
 	}
+	if p.is(BegObj) {
+		return p.parseObject()
+	}
+	p.skipNLs()
+	p.skipComments()
+
+	obj := make(map[string]any)
 	for !p.done() {
-		_, err := p.parseMember()
+		p.skipNLs()
+		keys, ret, err := p.parseMember()
 		if err != nil {
 			return nil, err
 		}
+		obj = modifyObject(obj, keys, ret)
 	}
-	return nil, nil
+	return obj, nil
 }
 
 func (p *uclParser) parseValue() (any, error) {
@@ -493,7 +502,8 @@ func (p *uclParser) parseValue() (any, error) {
 	return ret, err
 }
 
-func (p *uclParser) parsePath() (any, error) {
+func (p *uclParser) parsePath() ([]string, error) {
+	var paths []string
 	for i := 0; !p.done(); i++ {
 		if p.is(Equal) || p.is(Colon) || p.is(BegObj) {
 			if i == 0 {
@@ -501,29 +511,30 @@ func (p *uclParser) parsePath() (any, error) {
 			}
 			break
 		}
-		_, err := p.parseKey()
+		key, err := p.parseKey()
 		if err != nil {
 			return nil, err
 		}
+		paths = append(paths, key)
 	}
-	return nil, nil
+	return paths, nil
 }
 
-func (p *uclParser) parseKey() (any, error) {
+func (p *uclParser) parseKey() (string, error) {
 	switch {
 	case p.is(String) || p.is(StringSingleQuoted) || p.is(Ident):
-		p.next()
+		defer p.next()
+		return p.currentLiteral(), nil
 	default:
-		return nil, syntaxError("unexpected token in key")
+		return "", syntaxError("unexpected token in key")
 	}	
-	return nil, nil
 }
 
-func (p *uclParser) parseMember() (any, error) {
+func (p *uclParser) parseMember() ([]string, any, error) {
 	p.skipComments()
-	_, err := p.parsePath()
+	keys, err := p.parsePath()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var ret any
 	switch {
@@ -533,15 +544,15 @@ func (p *uclParser) parseMember() (any, error) {
 	case p.is(BegObj):
 		ret, err = p.parseObject()
 	default:
-		return nil, syntaxError("missing separator after key")
+		return nil, nil, syntaxError("missing separator after key")
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := p.parseSeparator(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return ret, nil
+	return keys, ret, nil
 }
 
 func (p *uclParser) parseSeparator() error {
@@ -552,6 +563,7 @@ func (p *uclParser) parseSeparator() error {
 		if skipComments {
 			p.skipComments()
 		}
+		p.skipNLs()
 	default:
 		return syntaxError("expected ',' or ';' or '\n'")
 	}
@@ -560,28 +572,65 @@ func (p *uclParser) parseSeparator() error {
 
 func (p *uclParser) parseObject() (any, error) {
 	p.next()
+	obj := make(map[string]any)
 	for !p.done() && !p.is(EndObj) {
 		p.skipNLs()
-		_, err := p.parseMember()
+		keys, ret, err := p.parseMember()
 		if err != nil {
 			return nil, err
 		}
+		obj = modifyObject(obj, keys, ret)
+		// fmt.Println(keys, ret)
 	}
 	if !p.is(EndObj) {
 		return nil, syntaxError("missing '}' at end of object")
 	}
 	p.next()
-	return nil, nil
+	return obj, nil
+}
+
+func modifyObject(obj map[string]any, keys []string, val any) map[string]any {
+	if len(keys) == 0 {
+		return obj
+	}
+	k := keys[0]
+	switch curr, ok := obj[k]; {
+	case !ok && len(keys)==1:
+		obj[k] = val
+	case !ok:
+		tmp := make(map[string]any)
+		obj[k] = modifyObject(tmp, keys[1:], val)
+		return obj
+	case ok && len(keys)>1:
+		var target map[string]any
+		if x, ok := obj[k].(map[string]any); ok {
+			target = x
+		} else {
+			break
+		}
+		obj[k] =  modifyObject(target, keys[1:], val)
+		return obj
+	default:
+		if arr, ok := curr.([]any); ok {
+			obj[k] = append(arr, val)
+		} else {
+			obj[k] = []any{curr, val}
+		}
+	}
+	return obj
 }
 
 func (p *uclParser) parseArray() (any, error) {
 	p.next()
+	var list []any
 	for !p.done() && !p.is(EndArr) {
 		p.skipNLs()
-		_, err := p.parseValue()
+		p.skipComments()
+		ret, err := p.parseValue()
 		if err != nil {
 			return nil, err
 		}
+		list = append(list, ret)
 		switch {
 		case p.is(Comma):
 			p.next()
@@ -594,7 +643,7 @@ func (p *uclParser) parseArray() (any, error) {
 		return nil, syntaxError("missing ']' at end of array")
 	}
 	p.next()
-	return nil, nil
+	return list, nil
 }
 
 func (p *uclParser) parseNumber() (any, error) {
