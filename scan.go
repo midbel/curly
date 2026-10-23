@@ -105,6 +105,7 @@ func (s *Scanner) scanComment(tok *Token) {
 	if multiline {
 		tok.Type = CommentMulti
 	}
+	s.skipNL()
 }
 
 func (s *Scanner) scanIdent(tok *Token) {
@@ -300,6 +301,9 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 	}
 	if tok.Type != Invalid {
 		s.read()
+		if tok.Type == BegArr || tok.Type == BegObj || tok.Type == Comma || tok.Type == Semicolon {
+			s.skipNL()
+		}
 	}
 }
 

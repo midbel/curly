@@ -25,6 +25,12 @@ func Five(r io.Reader) (any, error) {
 	return p.Parse()
 }
 
+// func Human(r io.Reader) (any, error) {
+// 	p := newHumanParser()
+// 	_ = p
+// 	return nil, nil
+// }
+
 type stdParser struct {
 	scan *Scanner
 	curr Token
@@ -391,6 +397,38 @@ func (p *fiveParser) currentLiteral() string {
 	return p.curr.Literal
 }
 
+// type humanParser struct {
+// 	scan *Scanner
+// 	curr Token
+// 	peek Token
+// }
+
+// func newHumanParser(r io.Reader) *humanParser {
+// 	p := &humanParser{
+// 		scan: Scan(r),
+// 	}
+// 	p.next()
+// 	p.next()
+// 	return p
+// }
+
+// func (p *humanParser) done() bool {
+// 	return p.is(EOF)
+// }
+
+// func (p *humanParser) is(kind rune) bool {
+// 	return p.curr.Type == kind
+// }
+
+// func (p *humanParser) next() {
+// 	p.curr = p.peek
+// 	p.peek = p.scan.Scan()
+// }
+
+// func (p *humanParser) currentLiteral() string {
+// 	return p.curr.Literal
+// }
+
 type uclParser struct {
 	scan *Scanner
 	curr Token
@@ -427,43 +465,20 @@ func (p *uclParser) parse() (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		// p.skipComments()
-		// _, err := p.parsePath()
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// switch {
-		// case p.is(Equal) || p.is(Colon):
-		// 	p.next()
-		// 	_, _, err = p.parseValue()
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// case p.is(BegObj):
-		// 	_, err = p.parseObject()
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// default:
-		// 	return nil, syntaxError("unexpected token after key")
-		// }
 	}
 	return nil, nil
 }
 
-func (p *uclParser) parseValue() (any, bool, error) {
+func (p *uclParser) parseValue() (any, error) {
 	var (
 		ret any
-		comp bool
 		err error
 	)
 	switch p.curr.Type {
 	case BegObj:
 		ret, err = p.parseObject()
-		comp = true
 	case BegArr:
 		ret, err = p.parseArray()
-		comp = true
 	case Null:
 		ret = p.parseNull()
 	case Boolean:
@@ -475,10 +490,7 @@ func (p *uclParser) parseValue() (any, bool, error) {
 	default:
 		err = syntaxError("invalid value")
 	}
-	if err != nil {
-		return nil, false, err
-	}
-	return ret, comp, nil
+	return ret, err
 }
 
 func (p *uclParser) parsePath() (any, error) {
@@ -500,7 +512,6 @@ func (p *uclParser) parsePath() (any, error) {
 func (p *uclParser) parseKey() (any, error) {
 	switch {
 	case p.is(String) || p.is(StringSingleQuoted) || p.is(Ident):
-		fmt.Println("> key", p.curr)
 		p.next()
 	default:
 		return nil, syntaxError("unexpected token in key")
@@ -514,33 +525,43 @@ func (p *uclParser) parseMember() (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	var ret any
 	switch {
 	case p.is(Equal) || p.is(Colon):
 		p.next()
+		ret, err = p.parseValue()
 	case p.is(BegObj):
+		ret, err = p.parseObject()
 	default:
 		return nil, syntaxError("missing separator after key")
 	}
-	ret, composite, err := p.parseValue()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(">> object value", ret)
-	switch {
-	case !composite && (p.is(Semicolon) || p.is(Comma)):
-		p.next()
-	case p.is(EndObj):
-	default:
-		if !composite {
-			return nil, syntaxError("expected ',' or ';' or '}'")
-		}
+	if err := p.parseSeparator(); err != nil {
+		return nil, err
 	}
 	return ret, nil
+}
+
+func (p *uclParser) parseSeparator() error {
+	skipComments := p.is(Semicolon) || p.is(Comma)
+	switch {
+	case p.is(Semicolon) || p.is(Comma) || p.is(Newline) || p.is(EOF):
+		p.next()
+		if skipComments {
+			p.skipComments()
+		}
+	default:
+		return syntaxError("expected ',' or ';' or '\n'")
+	}
+	return nil
 }
 
 func (p *uclParser) parseObject() (any, error) {
 	p.next()
 	for !p.done() && !p.is(EndObj) {
+		p.skipNLs()
 		_, err := p.parseMember()
 		if err != nil {
 			return nil, err
@@ -556,11 +577,11 @@ func (p *uclParser) parseObject() (any, error) {
 func (p *uclParser) parseArray() (any, error) {
 	p.next()
 	for !p.done() && !p.is(EndArr) {
-		ret, _, err := p.parseValue()
+		p.skipNLs()
+		_, err := p.parseValue()
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(">> array value", ret)
 		switch {
 		case p.is(Comma):
 			p.next()
@@ -619,6 +640,12 @@ func (p *uclParser) parseString() any {
 func (p *uclParser) parseNull() any {
 	defer p.next()
 	return nil
+}
+
+func (p *uclParser) skipNLs() {
+	for p.is(Newline) {
+		p.next()
+	}
 }
 
 func (p *uclParser) skipComments() {
